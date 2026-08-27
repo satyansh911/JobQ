@@ -1,0 +1,41 @@
+# ---------------------------------------------------------------
+# Secrets — never commit these. Each service reads its own .env;
+# committed *.example files document the required keys instead.
+# ---------------------------------------------------------------
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Runtime-generated uploads (local storage fallback driver)
+services/utils/uploads/
+
+# Local reference docs — kept out of the repo
+*.pdf
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Test / coverage
+coverage/
+.nyc_output/
