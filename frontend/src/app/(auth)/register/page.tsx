@@ -80,18 +80,18 @@ const RegisterPage = () => {
     <div className="h-[100dvh] overflow-hidden flex flex-col items-center justify-center gap-6 px-4 py-6">
       <Link href="/" aria-label="JobQ home" className="shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="JobQ" className="h-10 w-auto" />
+        <img src="/logo-black.png" alt="JobQ" className="h-10 w-auto" />
       </Link>
 
       <div className="text-center shrink-0">
-        <h1 className="text-4xl font-bold mb-2">Join JobQ</h1>
-        <p className="text-sm opacity-70">
+        <h1 className="t-h1 mb-2">Join JobQ</h1>
+        <p className="t-body-sm">
           Create your account to start a new journey
         </p>
       </div>
 
       <div className="w-full max-w-md min-h-0 flex">
-        <div className="liquid-glass rounded-2xl p-8 w-full overflow-y-auto">
+        <div className="surface-card p-8 w-full overflow-y-auto">
           <form onSubmit={submitHandler} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="role" className="text-sm font-medium">
@@ -181,7 +181,7 @@ const RegisterPage = () => {
                 </div>
 
                 {role === "jobseeker" && (
-                  <div className="space-y-5 pt-4 border-t border-white/10">
+                  <div className="space-y-5 pt-4 border-t border-hairline">
                     <div className="space-y-2">
                       <Label htmlFor="resume" className="text-sm font-medium">
                         Resume (PDF)
@@ -227,12 +227,12 @@ const RegisterPage = () => {
             )}
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-hairline">
             <p className="text-center text-sm">
               Already have an account{" "}
               <Link
                 href={"/register"}
-                className="text-blue-500 font-medium hover:underline transition-all"
+                className="text-steel-700 font-medium hover:underline transition-all"
               >
                 Login?
               </Link>

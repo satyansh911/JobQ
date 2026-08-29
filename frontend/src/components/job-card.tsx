@@ -115,7 +115,7 @@ const JobCard: React.FC<JobCardProps> = ({ job }) => {
 
         {job.is_active === false && (
           <div className="w-full text-center text-sm text-red-600 bg-red-100 dark:bg-red-900/30 rounded-md px-3 py-2 font-medium">
-            Postion Closed
+            Position Closed
           </div>
         )}
       </CardContent>

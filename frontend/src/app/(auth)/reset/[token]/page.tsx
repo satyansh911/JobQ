@@ -40,11 +40,11 @@ const ResetPage = () => {
     <div className="h-[100dvh] overflow-hidden flex flex-col items-center justify-center gap-6 px-4 py-6">
       <Link href="/" aria-label="JobQ home" className="shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="JobQ" className="h-10 w-auto" />
+        <img src="/logo-black.png" alt="JobQ" className="h-10 w-auto" />
       </Link>
-      <div className="w-full max-w-md min-h-0 overflow-y-auto liquid-glass rounded-2xl p-8 flex flex-col relative">
+      <div className="w-full max-w-md min-h-0 overflow-y-auto surface-card p-8 flex flex-col relative">
         <h2 className="mb-1">
-          <span className="text-3xl">Reset Password</span>
+          <span className="t-h1">Reset Password</span>
         </h2>
         <form
           onSubmit={submitHandler}
@@ -70,7 +70,7 @@ const ResetPage = () => {
         </form>
 
         <Link
-          className="mt-2 text-blue-500 underline text-sm ml-2"
+          className="mt-2 text-steel-700 underline text-sm ml-2"
           href={"/login"}
         >
           Go to login page

@@ -57,17 +57,17 @@ const LoginPage = () => {
     <div className="h-[100dvh] overflow-hidden flex flex-col items-center justify-center gap-6 px-4 py-6">
       <Link href="/" aria-label="JobQ home" className="shrink-0">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="JobQ" className="h-10 w-auto" />
+        <img src="/logo-black.png" alt="JobQ" className="h-10 w-auto" />
       </Link>
 
       <div className="text-center shrink-0">
 
-        <h1 className="text-4xl font-bold mb-2">Welcome back to JobQ</h1>
-        <p className="text-sm opacity-70">Sign in to continue your journey</p>
+        <h1 className="t-h1 mb-2">Welcome back to JobQ</h1>
+        <p className="t-body-sm">Sign in to continue your journey</p>
       </div>
 
       <div className="w-full max-w-md min-h-0 flex">
-        <div className="liquid-glass rounded-2xl p-8 w-full overflow-y-auto">
+        <div className="surface-card p-8 w-full overflow-y-auto">
           <form onSubmit={submitHandler} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium">
@@ -108,7 +108,7 @@ const LoginPage = () => {
             <div className="flex items-center justify-end">
               <Link
                 href={"/forgot"}
-                className="text-sm text-blue-500 hover:underline transition-all"
+                className="text-sm text-steel-700 hover:underline transition-all"
               >
                 Forgot Password?
               </Link>
@@ -120,12 +120,12 @@ const LoginPage = () => {
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-white/10">
+          <div className="mt-6 pt-6 border-t border-hairline">
             <p className="text-center text-sm">
               Don't have an account?{" "}
               <Link
                 href={"/register"}
-                className="text-blue-500 font-medium hover:underline transition-all"
+                className="text-steel-700 font-medium hover:underline transition-all"
               >
                 Create a new account?
               </Link>

@@ -250,7 +250,7 @@ const JobPage = () => {
                       Job Description
                     </h2>
 
-                    <div className="p-6 rounded-xl liquid-glass">
+                    <div className="p-6 rounded-xl surface-card">
                       <p className="text-base leading-relaxed whitespace-pre-line">
                         {job.description}
                       </p>

@@ -135,5 +135,5 @@ export const HeroHeader = () => {
 
 const Logo = ({ className }: { className?: string }) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src="/logo.png" alt="JobQ" className={cn('h-9 w-auto', className)} />
+    <img src="/logo-black.png" alt="JobQ" className={cn('h-9 w-auto', className)} />
 )

@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
  * ------------------------------------------------------------------ */
 export const Logo = ({ className }: { className?: string }) => (
   // eslint-disable-next-line @next/next/no-img-element
-  <img src="/logo.png" alt="JobQ" className={cn("h-9 w-auto", className)} />
+  <img src="/logo-black.png" alt="JobQ" className={cn("h-9 w-auto", className)} />
 );
 
 /* ------------------------------------------------------------------ *
@@ -32,7 +32,7 @@ export const LogoMark = ({ className }: { className?: string }) => (
  * (the "Browse Jobs" button and the AI tool triggers).
  * ------------------------------------------------------------------ */
 export const primaryPill =
-  "group inline-flex items-center justify-center gap-2 rounded-full bg-white text-black font-medium text-sm px-5 py-3 transition-all hover:bg-white/90 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none";
+  "inline-flex items-center justify-center gap-2 border border-primary bg-primary px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-white transition-colors hover:bg-steel-800 disabled:opacity-45";
 
 /* ------------------------------------------------------------------ *
  * PrimaryButton — rounded-full white pill, mark + label + chevron

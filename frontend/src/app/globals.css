@@ -1,19 +1,147 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@600&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* ===================================================================
+   JobQ — light-only design foundations.
+
+   One theme. A considered neutral ground, hairline structure, steel as
+   the only chromatic voice, and status colour held strictly separate
+   from it. Corners are square; depth comes from three surfaces and a
+   hairline rather than stacked shadows.
+   =================================================================== */
+
 @theme {
-  --color-brand: #3D81E3;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* --- surfaces ------------------------------------------------- */
+  --color-ground: #f2f2f3;
+  --color-raised: #f5f5f8;
+  --color-sunken: #e9e9ea;
+  --color-reverse: #1d2d3d;
+
+  /* --- ink (all measured against the ground) -------------------- */
+  --color-ink: #1d1f20;    /* 14.8:1 — headings, values, decisions   */
+  --color-ink-2: #424244;  /*  8.2:1 — body copy                     */
+  --color-ink-3: #5d5d60;  /*  5.8:1 — labels, metadata              */
+  --color-ink-4: #6b6b6e;  /*  4.7:1 — placeholders only. The floor. */
+  /* aliases so `bg-ground`, `text-ink`, `text-ink-3` … work as utilities */
+
+  /* --- structure ------------------------------------------------ */
+  --color-hairline: color-mix(in srgb, #1d1f20 16%, transparent);
+  --color-line-strong: #d4d4d7;
+
+  /* --- steel accent --------------------------------------------- */
+  --color-steel-100: #eef6ff;
+  --color-steel-200: #d6e6f5;
+  --color-steel-300: #b3cee4;
+  --color-steel-400: #86aecb;
+  --color-steel: #5980a6;      /* base — 3.7:1. Never carries text. */
+  --color-steel-700: #416180;  /* 5.7:1 — links, and every text fill */
+  --color-steel-800: #2c455d;
+  --color-steel-900: #1d2d3d;
+
+  /* --- status: separate from the accent, never decorative ------- */
+  --color-ok: #3f8f6b;
+  --color-ok-text: #2a6349;
+  --color-ok-tint: #e8f2ec;
+  --color-warn: #b5822c;
+  --color-warn-text: #7d5713;
+  --color-warn-tint: #f7efdd;
+  --color-bad: #c05a4e;
+  --color-bad-text: #8f3b31;
+  --color-bad-tint: #f8eae7;
+
+  /* --- type ------------------------------------------------------ */
+  --font-display: 'Barlow Condensed', system-ui, sans-serif;
+  --font-sans: 'Barlow', system-ui, sans-serif;
+
+  --text-display: 3.5rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.024em;
+  --text-h1: 2.125rem;
+  --text-h1--line-height: 1.08;
+  --text-h1--letter-spacing: -0.02em;
+  --text-h2: 1.625rem;
+  --text-h2--line-height: 1.12;
+  --text-h2--letter-spacing: -0.018em;
+  --text-h3: 1.25rem;
+  --text-h3--line-height: 1.2;
+  --text-h3--letter-spacing: -0.012em;
+  --text-overline: 0.6875rem;
+  --text-overline--line-height: 1.2;
+  --text-overline--letter-spacing: 0.09em;
+  --text-body-lg: 1.0625rem;
+  --text-body-lg--line-height: 1.62;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.58;
+  --text-body-sm: 0.8125rem;
+  --text-body-sm--line-height: 1.5;
+  --text-label: 0.8125rem;
+  --text-label--line-height: 1.35;
+  --text-label--letter-spacing: 0.005em;
+
+  /* --- edge + elevation ------------------------------------------ */
+  --radius: 0px;
+  --shadow-sm: 0 1px 2px oklch(0.28 0.003 264 / 0.14);
+  --shadow-md: 0 3px 10px oklch(0.28 0.003 264 / 0.16);
+  --shadow-lg: 0 12px 32px oklch(0.28 0.003 264 / 0.22);
+
+  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
 }
 
-@custom-variant dark (&:is(.dark *));
+/* ---------------------------------------------------------------
+   shadcn semantic tokens, mapped onto the foundations above so the
+   existing primitives inherit the system without per-component edits.
+   --------------------------------------------------------------- */
+:root {
+  --radius: 0px;
+
+  --background: #f2f2f3;
+  --foreground: #1d1f20;
+  --card: #f5f5f8;
+  --card-foreground: #1d1f20;
+  --popover: #f5f5f8;
+  --popover-foreground: #1d1f20;
+
+  /* Fills that carry text use accent-700: white on the base steel is
+     only 4.2:1 and fails AA. */
+  --primary: #416180;
+  --primary-foreground: #ffffff;
+
+  --secondary: #e9e9ea;
+  --secondary-foreground: #1d1f20;
+  --muted: #e9e9ea;
+  --muted-foreground: #5d5d60;
+  --accent: #eef6ff;
+  --accent-foreground: #2c455d;
+
+  --destructive: #8f3b31;
+  --destructive-foreground: #ffffff;
+
+  --border: color-mix(in srgb, #1d1f20 16%, transparent);
+  --input: #d4d4d7;
+  --ring: #5980a6;
+
+  --chart-1: #5980a6;
+  --chart-2: #3f8f6b;
+  --chart-3: #b5822c;
+  --chart-4: #c05a4e;
+  --chart-5: #2c455d;
+
+  --sidebar: #f5f5f8;
+  --sidebar-foreground: #1d1f20;
+  --sidebar-primary: #416180;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eef6ff;
+  --sidebar-accent-foreground: #2c455d;
+  --sidebar-border: color-mix(in srgb, #1d1f20 16%, transparent);
+  --sidebar-ring: #5980a6;
+}
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -32,11 +160,6 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -47,159 +170,211 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-:root {
-  --radius: 0.625rem;
-
-  /* JobQ is a dark-only product surface — these mirror the landing palette.
-     :root and .dark are intentionally identical so the site renders the same
-     cinematic dark treatment regardless of the visitor's OS/theme setting. */
-  --background: #0c0c0c;
-  --foreground: #ffffff;
-  --card: #121216;
-  --card-foreground: #ffffff;
-  --popover: #121216;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #0c0c0c;
-  --secondary: #1a1a20;
-  --secondary-foreground: #ffffff;
-  --muted: #1a1a20;
-  --muted-foreground: rgba(255, 255, 255, 0.6);
-  --accent: #1f1f27;
-  --accent-foreground: #ffffff;
-  --destructive: #f0806f;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.14);
-  --ring: rgba(255, 255, 255, 0.3);
-  --chart-1: #00d2ff;
-  --chart-2: #A4F4FD;
-  --chart-3: #3D81E3;
-  --chart-4: #f59e0b;
-  --chart-5: #10b981;
-  --sidebar: #121216;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #0c0c0c;
-  --sidebar-accent: #1f1f27;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: rgba(255, 255, 255, 0.3);
-}
-
-.dark {
-  --background: #0c0c0c;
-  --foreground: #ffffff;
-  --card: #121216;
-  --card-foreground: #ffffff;
-  --popover: #121216;
-  --popover-foreground: #ffffff;
-  --primary: #ffffff;
-  --primary-foreground: #0c0c0c;
-  --secondary: #1a1a20;
-  --secondary-foreground: #ffffff;
-  --muted: #1a1a20;
-  --muted-foreground: rgba(255, 255, 255, 0.6);
-  --accent: #1f1f27;
-  --accent-foreground: #ffffff;
-  --destructive: #f0806f;
-  --border: rgba(255, 255, 255, 0.1);
-  --input: rgba(255, 255, 255, 0.14);
-  --ring: rgba(255, 255, 255, 0.3);
-  --chart-1: #00d2ff;
-  --chart-2: #A4F4FD;
-  --chart-3: #3D81E3;
-  --chart-4: #f59e0b;
-  --chart-5: #10b981;
-  --sidebar: #121216;
-  --sidebar-foreground: #ffffff;
-  --sidebar-primary: #ffffff;
-  --sidebar-primary-foreground: #0c0c0c;
-  --sidebar-accent: #1f1f27;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: rgba(255, 255, 255, 0.1);
-  --sidebar-ring: rgba(255, 255, 255, 0.3);
-}
-
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
 
-.icon-style {
-  @apply absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 opacity-50;
+  html,
+  body {
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--color-ground);
+    color: var(--color-ink);
+  }
+
+  /* Condensed carries every heading. Never a paragraph. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+
+  a {
+    color: var(--color-steel-700);
+  }
+  a:hover {
+    color: var(--color-steel);
+  }
+
+  /* Every figure that can be compared column-to-column. */
+  [data-numeric],
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
+
+  ::selection {
+    background: var(--color-steel-200);
+    color: var(--color-steel-900);
+  }
 }
 
 /* ---------------------------------------------------------------
-   Landing page — typography, glass, shiny headline
+   Typography roles
+   --------------------------------------------------------------- */
+.t-display {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.125rem, 6vw, var(--text-display));
+  line-height: 1;
+  letter-spacing: -0.024em;
+}
+.t-h1 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-h1);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+}
+.t-h2 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-h2);
+  line-height: 1.12;
+  letter-spacing: -0.018em;
+}
+.t-h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-h3);
+  line-height: 1.2;
+  letter-spacing: -0.012em;
+}
+.t-overline {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-overline);
+  line-height: 1.2;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+.t-body-lg {
+  font-size: var(--text-body-lg);
+  line-height: 1.62;
+  max-width: 72ch;
+  color: var(--color-ink-2);
+}
+.t-body {
+  font-size: var(--text-base);
+  line-height: 1.58;
+  max-width: 60ch;
+  color: var(--color-ink-2);
+}
+.t-body-sm {
+  font-size: var(--text-body-sm);
+  line-height: 1.5;
+  color: var(--color-ink-3);
+}
+.t-label {
+  font-size: var(--text-label);
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  font-weight: 500;
+  color: var(--color-ink-2);
+}
+
+/* ---------------------------------------------------------------
+   Surfaces
    --------------------------------------------------------------- */
 
-html,
-body {
-  font-family: 'Inter', system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
+/* Cards get no shadow at rest — ever. If a surface has a shadow, it
+   can be dismissed. */
+.surface-card {
+  background: var(--color-raised);
+  border: 1px solid var(--color-hairline);
 }
 
-::selection {
-  background-color: color-mix(in srgb, var(--color-brand) 30%, transparent);
+.surface-sunken {
+  background: var(--color-sunken);
 }
 
-/* Shiny gradient headline sweep */
-@keyframes shiny {
+/* Status pills: tint fill, dark step for the text on it. */
+.status-ok {
+  background: var(--color-ok-tint);
+  color: var(--color-ok-text);
+}
+.status-warn {
+  background: var(--color-warn-tint);
+  color: var(--color-warn-text);
+}
+.status-bad {
+  background: var(--color-bad-tint);
+  color: var(--color-bad-text);
+}
+.status-neutral {
+  background: var(--color-sunken);
+  color: var(--color-ink-3);
+}
+.status-accent {
+  background: var(--color-steel-100);
+  color: var(--color-steel-800);
+}
+
+/* ---------------------------------------------------------------
+   Skeletons — a spinner is reserved for button-local pending states.
+   --------------------------------------------------------------- */
+@keyframes jq-shimmer {
   0% {
-    background-position: -200% center;
+    background-position: -160% 0;
   }
   100% {
-    background-position: 200% center;
+    background-position: 260% 0;
   }
 }
 
-.animate-shiny {
-  animation: shiny 6s linear infinite;
-}
-
-/* Glass panel — for surfaces that sit over the background video and still need
-   readable content: dialogs, popovers, dropdowns, selects, sticky bars. */
-.glass-panel {
-  background: rgba(16, 16, 20, 0.88);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Liquid-glass card treatment */
-.liquid-glass {
-  background: rgba(255, 255, 255, 0.01);
-  background-blend-mode: luminosity;
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  border: none;
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  position: relative;
-  overflow: hidden;
-}
-
-.liquid-glass::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1.4px;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.45) 0%,
-    rgba(255, 255, 255, 0.15) 20%,
-    rgba(255, 255, 255, 0) 40%,
-    rgba(255, 255, 255, 0) 60%,
-    rgba(255, 255, 255, 0.15) 80%,
-    rgba(255, 255, 255, 0.45) 100%
+.skeleton {
+  background: var(--color-sunken);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in srgb, #ffffff 70%, transparent) 50%,
+    transparent 100%
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
+  background-size: 200% 100%;
+  animation: jq-shimmer 1.4s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 100ms !important;
+  }
+}
+
+/* Legacy helper kept so field icons keep their offset. */
+.icon-style {
+  @apply absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4;
+  color: var(--color-ink-3);
+}
+
+/* Small primary action used in headers. */
+.btn-primary-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: #fff;
+  padding: 0.5rem 1rem;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  transition: background-color 120ms ease-out;
+}
+.btn-primary-sm:hover {
+  background: var(--color-steel-800);
+  color: #fff;
 }

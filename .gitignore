@@ -39,3 +39,6 @@ yarn-error.log*
 # Test / coverage
 coverage/
 .nyc_output/
+
+# Design handoff bundles (working artifacts, not source)
+*-handoff.zip
