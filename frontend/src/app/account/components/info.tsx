@@ -1,429 +1,289 @@
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+"use client";
+
+import React, { ChangeEvent, useRef, useState } from "react";
+import Link from "next/link";
+import toast from "react-hot-toast";
+import { Camera, FileText, Pencil } from "lucide-react";
+import { AccontProps } from "@/type";
+import { useAppData } from "@/context/AppContext";
+import { StatusBadge } from "@/components/status-badge";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAppData } from "@/context/AppContext";
-import { AccontProps } from "@/type";
-import {
-  AlertTriangle,
-  Briefcase,
-  Camera,
-  CheckCircle2,
-  Crown,
-  Edit,
-  FileText,
-  Mail,
-  NotepadText,
-  Phone,
-  RefreshCcw,
-  UserIcon,
-} from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import React, { ChangeEvent, useRef, useState } from "react";
+import { Input } from "@/components/ui/input";
 
 const Info: React.FC<AccontProps> = ({ user, isYourAccount }) => {
-  const inputRef = useRef<HTMLInputElement | null>(null);
-  const editRef = useRef<HTMLButtonElement | null>(null);
+  const picRef = useRef<HTMLInputElement | null>(null);
   const resumeRef = useRef<HTMLInputElement | null>(null);
 
+  const { updateProfilePic, updateResume, btnLoading, updateUser } = useAppData();
+
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [bio, setBio] = useState("");
 
-  const { updateProfilePic, updateResume, btnLoading, updateUser } =
-    useAppData();
-
-  const handleClick = () => {
-    inputRef.current?.click();
-  };
-
-  const changeHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const formData = new FormData();
-      formData.append("file", file);
-      updateProfilePic(formData);
-    }
-  };
-
-  const handleEditClick = () => {
-    editRef.current?.click();
+  const openEdit = () => {
     setName(user.name);
     setPhoneNumber(user.phone_number);
     setBio(user.bio || "");
+    setOpen(true);
   };
 
-  const updateProfileHandler = () => {
-    updateUser(name, phoneNumber, bio);
-  };
-
-  const handleResumeClick = () => {
-    resumeRef.current?.click();
+  const changePic = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Choose an image file");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("file", file);
+    updateProfilePic(fd);
   };
 
   const changeResume = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== "application/pdf") {
-        alert("Please upload a pdf file");
-        return;
-      }
-
-      const formData = new FormData();
-      formData.append("file", file);
-      updateResume(formData);
+    if (!file) return;
+    if (file.type !== "application/pdf") {
+      toast.error("Résumé must be a PDF");
+      return;
     }
+    const fd = new FormData();
+    fd.append("file", file);
+    updateResume(fd);
   };
 
-  const router = useRouter();
+  const isSubscribed =
+    !!user.subscription && new Date(user.subscription).getTime() > Date.now();
+
+  /* Completeness is computed, not stored — it always reflects the profile. */
+  const checks = [
+    { done: !!user.bio, label: "Add a short bio" },
+    { done: !!user.resume, label: "Upload a résumé" },
+    { done: !!user.profile_pic, label: "Add a profile photo" },
+    {
+      done: (user.skills?.length || 0) >= 3,
+      label: `Add ${Math.max(0, 3 - (user.skills?.length || 0))} more skills`,
+    },
+  ];
+  const complete = Math.round(
+    (checks.filter((c) => c.done).length / checks.length) * 100
+  );
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8">
-      <Card className="overflow-hidden shadow-lg border-2">
-        <div className="h-32 bg-gradient-to-r from-[#0B2551] to-[#00d2ff]/30 relative">
-          <div className="absolute -bottom-16 left-8">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full border-4 border-background overflow-hidden shadow-xl bg-background">
-                <img
-                  src={user.profile_pic ? user.profile_pic : "/user.png"}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* edit option for your profile pic */}
-              {isYourAccount && (
-                <>
-                  <Button
-                    variant={"secondary"}
-                    size={"icon"}
-                    onClick={handleClick}
-                    className="absolute bottom-0 right-0 rounded-full h-10 w-10 shadow-lg"
-                  >
-                    <Camera size={18} />
-                  </Button>
-
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    ref={inputRef}
-                    onChange={changeHandler}
-                  />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className="pt-20 pb-8 px-8">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div className="space-y-1">
-              <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold">{user.name}</h1>
-                {/* Edit button */}
-                {isYourAccount && (
-                  <Button
-                    variant={"ghost"}
-                    size={"icon"}
-                    className="h-8 w-8"
-                    onClick={handleEditClick}
-                  >
-                    <Edit size={16} />
-                  </Button>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 text-sm opacity-70">
-                <Briefcase size={16} />
-                <span className="capitalize">{user.role}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Bio section */}
-          {user.role === "jobseeker" && user.bio && (
-            <div className="mt-6 p-4 rounded-lg border">
-              <div className="flex items-center gap-2 mb-2 text-sm font-medium opacity-70">
-                <FileText size={16} />
-                <span>About</span>
-              </div>
-              <p className="text-base leading-relaxed">{user.bio}</p>
-            </div>
-          )}
-
-          {/* Contact Info */}
-          <div className="mt-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Mail size={20} className="text-blue-600" />
-              Contact Information
-            </h2>
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-3 p-4 rounded-lg border hover:border-blue-500 transition-colors">
-                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <Mail size={18} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs opacity-70 font-medium">Email</p>
-                  <p className="text-sm truncate">{user.email}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-3 p-4 rounded-lg border hover:border-blue-500 transition-colors">
-                <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <Phone size={18} className="text-blue-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs opacity-70 font-medium">Phone</p>
-                  <p className="text-sm truncate">{user.phone_number}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Resume section */}
-          {user.role === "jobseeker" && user.resume && (
-            <div className="mt-8">
-              <h2 className="text-lg font-semibold mt-4 flex items-center gap-2">
-                <NotepadText size={20} className="text-blue-600" />
-                Resume
-              </h2>
-
-              <div className="flex items-center gap-3 p-4 rounded-lg border hover:border-blue-500 transition-colors">
-                <div className="h-12 w-12 rounded-lg bg-red-100 dark:bg-red-900 flex items-center justify-center">
-                  <NotepadText size={20} className="text-red-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium">Resume Document</p>
-                  <Link
-                    href={user.resume}
-                    className="text-sm text-blue-500 hover:underline"
-                    target="_blank"
-                  >
-                    View Resume PDF
-                  </Link>
-                </div>
-                {/* edit button */}
-
-                <Button
-                  variant={"outline"}
-                  size={"sm"}
-                  onClick={handleResumeClick}
-                  className="gap-2"
-                >
-                  Update
-                </Button>
-                <input
-                  type="file"
-                  ref={resumeRef}
-                  className="hidden"
-                  accept="application/pdf"
-                  onChange={changeResume}
-                />
-              </div>
-            </div>
-          )}
-
-          {/* subscription section */}
+    <section className="border border-hairline bg-raised">
+      <div className="flex flex-wrap items-start gap-5 p-6">
+        {/* avatar — the only circle in the system */}
+        <div className="relative shrink-0">
+          <span className="block size-20 overflow-hidden rounded-full border border-hairline bg-sunken">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={user.profile_pic || "/user.png"}
+              alt=""
+              className="size-full object-cover"
+            />
+          </span>
           {isYourAccount && (
             <>
-              {user.role === "jobseeker" && (
-                <div className="mt-8">
-                  <h2 className="text-lg font-semibold mt-4 flex items-center gap-2">
-                    <Crown size={20} className="text-blue-600" />
-                    Subscription Status
-                  </h2>
-
-                  <div className="p-6 rounded-lg bg-linear-to-br from-blue-50 to-purple-50 dark:from-blue-900/20 to-purple-950/20 ">
-                    {!user.subscription ? (
-                      <>
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                          <div>
-                            <p className="font-semibold text-lg mb-1">
-                              No Active Subscription
-                            </p>
-                            <p className="text-sm opacity-70">
-                              Subscribe to unlock premium features and benefits
-                            </p>
-                          </div>
-                          <Button
-                            className="gap-2"
-                            onClick={() => router.push("/subscribe")}
-                          >
-                            <Crown size={18} />
-                            Subscribe Now
-                          </Button>
-                        </div>
-                      </>
-                    ) : new Date(user.subscription).getTime() > Date.now() ? (
-                      <div className="flex items-center justify-between flex-wrap gap-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <CheckCircle2
-                              size={20}
-                              className="text-green-600"
-                            />
-                            <p className="font-semibold text-lg text-green-600">
-                              Active Subscription
-                            </p>
-                          </div>
-                          <p className="text-sm opacity-70">
-                            Valid until:{" "}
-                            {new Date(user.subscription).toLocaleDateString(
-                              "en-US",
-                              {
-                                year: "numeric",
-                                month: "long",
-                                day: "numeric",
-                              }
-                            )}
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-green-700 text-white font-medium">
-                          <CheckCircle2 size={18} />
-                          Subcribed
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center justify-between flex-wrap gap-4">
-                          <div>
-                            <div className="flex items-center gap-2 mb-2">
-                              <AlertTriangle
-                                size={20}
-                                className="text-red-600"
-                              />
-                              <p className="font-semibold text-lg text-red-600">
-                                Subscription Expired
-                              </p>
-                            </div>
-
-                            <p className="text-sm opacity-70">
-                              Expired On:{" "}
-                              {new Date(user.subscription).toLocaleDateString(
-                                "en-US",
-                                {
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                }
-                              )}
-                            </p>
-                          </div>
-
-                          <Button
-                            variant={"destructive"}
-                            className="gap-2"
-                            onClick={() => router.push("/subscribe")}
-                          >
-                            <RefreshCcw size={18} />
-                            Renew Subscription
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
+              <button
+                onClick={() => picRef.current?.click()}
+                aria-label="Change profile photo"
+                className="absolute -bottom-1 -right-1 flex size-7 items-center justify-center border border-hairline bg-raised text-ink-2 hover:bg-sunken"
+              >
+                <Camera className="size-3.5" />
+              </button>
+              <input
+                ref={picRef}
+                type="file"
+                accept="image/*"
+                onChange={changePic}
+                className="hidden"
+              />
             </>
           )}
         </div>
-      </Card>
 
-      {/* Dialog box for edit */}
-      <Dialog>
-        <DialogTrigger asChild>
-          <Button ref={editRef} variant={"outline"} className="hidden">
-            Edit Profile
-          </Button>
-        </DialogTrigger>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="t-h2">{user.name}</h1>
+            {isYourAccount && (
+              <button
+                onClick={openEdit}
+                aria-label="Edit profile"
+                className="flex size-7 items-center justify-center border border-line-strong text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
+              >
+                <Pencil className="size-3.5" />
+              </button>
+            )}
+          </div>
+          <p className="t-body-sm mt-0.5">
+            {user.role === "jobseeker" ? "Job seeker" : "Recruiter"}
+          </p>
+          {user.bio && <p className="t-body mt-3">{user.bio}</p>}
+        </div>
 
-        <DialogContent className="sm:max-w-[500px]">
+        {isYourAccount && (
+          <div className="w-full shrink-0 border border-hairline bg-ground p-4 sm:w-56">
+            <div className="flex items-baseline justify-between">
+              <p className="t-overline">Profile</p>
+              <span className="numeric font-[family-name:var(--font-display)] text-[17px] font-semibold text-ink">
+                {complete}%
+              </span>
+            </div>
+            <div className="mt-2 h-1 bg-sunken">
+              <div className="h-full bg-steel" style={{ width: `${complete}%` }} />
+            </div>
+            <ul className="mt-3 space-y-1">
+              {checks
+                .filter((c) => !c.done)
+                .map((c) => (
+                  <li key={c.label} className="text-[13px] text-ink-3">
+                    {c.label}
+                  </li>
+                ))}
+              {complete === 100 && (
+                <li className="text-[13px] text-ok-text">Profile complete</li>
+              )}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      {/* contact + résumé + subscription */}
+      <dl className="grid gap-px border-t border-hairline bg-hairline sm:grid-cols-3">
+        <div className="bg-raised px-6 py-4">
+          <dt className="t-overline">Email</dt>
+          <dd className="mt-1 truncate text-[15px] text-ink">{user.email}</dd>
+        </div>
+        <div className="bg-raised px-6 py-4">
+          <dt className="t-overline">Phone</dt>
+          <dd className="numeric mt-1 text-[15px] text-ink">
+            {user.phone_number || "—"}
+          </dd>
+        </div>
+        <div className="bg-raised px-6 py-4">
+          <dt className="t-overline">Résumé</dt>
+          <dd className="mt-1 flex flex-wrap items-center gap-3 text-[15px]">
+            {user.resume ? (
+              <a
+                href={user.resume}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5"
+              >
+                <FileText className="size-3.5" /> Open PDF
+              </a>
+            ) : (
+              <StatusBadge kind="warn">No résumé on file</StatusBadge>
+            )}
+            {isYourAccount && (
+              <>
+                <button
+                  onClick={() => resumeRef.current?.click()}
+                  className="text-[14px] text-steel-700 hover:underline"
+                >
+                  {user.resume ? "Replace" : "Upload"}
+                </button>
+                <input
+                  ref={resumeRef}
+                  type="file"
+                  accept="application/pdf"
+                  onChange={changeResume}
+                  className="hidden"
+                />
+              </>
+            )}
+          </dd>
+        </div>
+      </dl>
+
+      {isYourAccount && user.role === "jobseeker" && (
+        <div className="flex flex-wrap items-center gap-4 border-t border-hairline px-6 py-4">
+          <div className="min-w-0 flex-1">
+            <p className="t-overline">Subscription</p>
+            <p className="t-body-sm mt-1">
+              {isSubscribed
+                ? `Priority active until ${new Date(user.subscription!).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                : "Priority places your application at the top of a recruiter's list. ₹119 a month, cancel any time."}
+            </p>
+          </div>
+          {isSubscribed ? (
+            <StatusBadge kind="ok">Priority active</StatusBadge>
+          ) : (
+            <Link href="/subscribe" className="btn-primary-sm shrink-0">
+              Go priority
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* edit profile dialog */}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
-            <DialogTitle className="text-2xl">Edit profile</DialogTitle>
+            <DialogTitle className="t-h3">Edit profile</DialogTitle>
+            <DialogDescription className="t-body-sm">
+              Your name and bio are visible to recruiters reviewing your
+              applications.
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5 py-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="name"
-                className="text-sm font-medium flex items-center gap-2"
-              >
-                <UserIcon size={16} /> Full Name
-              </Label>
-
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your name"
-                className="h-11"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="acc-name" className="t-label">Full name</Label>
+              <Input id="acc-name" value={name} onChange={(e) => setName(e.target.value)} />
             </div>
-
-            <div className="space-y-2">
-              <Label
-                htmlFor="phone"
-                className="text-sm font-medium flex items-center gap-2"
-              >
-                <Phone size={16} /> Phone
-              </Label>
-
+            <div className="space-y-1.5">
+              <Label htmlFor="acc-phone" className="t-label">Phone number</Label>
               <Input
-                id="phone"
-                type="number"
-                placeholder="Enter your Phone Number"
-                className="h-11"
+                id="acc-phone"
+                type="tel"
+                inputMode="tel"
                 value={phoneNumber}
                 onChange={(e) => setPhoneNumber(e.target.value)}
               />
             </div>
-
-            {user.role === "jobseeker" && (
-              <div className="space-y-2">
-                <Label
-                  htmlFor="bio"
-                  className="text-sm font-medium flex items-center gap-2"
-                >
-                  <FileText size={16} /> Bio
-                </Label>
-
-                <Input
-                  id="bio"
-                  type="text"
-                  placeholder="Enter your Bio"
-                  className="h-11"
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                />
-              </div>
-            )}
-
-            <DialogFooter>
-              <Button
-                disabled={btnLoading}
-                onClick={updateProfileHandler}
-                className="w-full h-11"
-                type="submit"
-              >
-                {btnLoading ? "Saving Changes..." : "Save changes"}
-              </Button>
-            </DialogFooter>
+            <div className="space-y-1.5">
+              <Label htmlFor="acc-bio" className="t-label">Bio</Label>
+              <textarea
+                id="acc-bio"
+                rows={4}
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="A sentence or two about what you build."
+                className="w-full resize-y border border-line-strong bg-sunken px-3 py-2 text-[15px] placeholder:text-ink-4 focus-visible:border-steel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel/40"
+              />
+            </div>
           </div>
+
+          <DialogFooter>
+            <button
+              onClick={() => setOpen(false)}
+              className="border border-line-strong px-4 py-2 text-[15px] font-medium text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                updateUser(name, phoneNumber, bio);
+                setOpen(false);
+              }}
+              disabled={btnLoading}
+              className="btn-primary-sm disabled:opacity-45"
+            >
+              {btnLoading ? "Saving…" : "Save changes"}
+            </button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </section>
   );
 };
 

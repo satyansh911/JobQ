@@ -1,66 +1,61 @@
-import { Button } from "@/components/ui/button";
-import Link from "next/link";
 import React from "react";
-import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
-const About = () => {
+const FACTS = [
+  ["Frontend", "Next.js 16 App Router, React 19, TypeScript, Tailwind v4"],
+  ["Services", "Five Node/Express services — auth, user, job, payment, utils"],
+  ["Data", "Postgres, shared across services; Redis for reset tokens"],
+  ["Messaging", "Kafka carries one topic, send-mail, consumed by utils"],
+  ["AI", "Gemini, for résumé ATS scoring and career guidance"],
+  ["Payments", "Razorpay, for the ₹119/month priority placement"],
+];
+
+export default function AboutPage() {
   return (
-    <div className="min-h-screen">
-      {/* Mission Section */}
-      <section className="container mx-auto px-4 py-12 md:py-16">
-        <div className="max-w-4xl mx-auto">
-          {/* Image */}
-          <div className="flex justify-center mb-8">
-            <img
-              src="/about.jpg"
-              className="w-full max-w-[500px] rounded-2xl shadow-lg"
-              alt="About JobQ"
-            />
-          </div>
+    <div className="mx-auto max-w-[760px] px-4 py-12 md:px-6 md:py-16">
+      <p className="t-overline">About</p>
+      <h1 className="t-h1 mt-3">Our mission at JobQ</h1>
+      <p className="t-body-lg mt-5">
+        JobQ exists to make the job search legible from both sides. Seekers
+        should be able to narrow a list down to the roles that genuinely fit and
+        apply once, with a profile they maintain in one place. Recruiters should
+        be able to post a role and work through the applicants without leaving
+        the page.
+      </p>
 
-          {/* Content */}
-          <div className="text-center space-y-6">
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-              Our Mission At
-              <span className="text-red-500"> JobQ</span>
-            </h1>
+      <h2 className="t-h2 mt-12">Built in the open</h2>
+      <p className="t-body mt-3">
+        JobQ is a working microservices application, not a mockup. Every part of
+        it is on GitHub, including the pieces that are still rough.
+      </p>
 
-            <p
-              className="text-lg md:text-xl leading-relaxed opacity-90 max-w-3xl mx
-auto"
-            >
-              At JobQ, we're dedicated to revolutionizing the job search
-              experience. Our mission is to create meaningful connections
-              between talented individuals and forward-thinking companies,
-              fostering growth and success for both.
-            </p>
+      <dl className="mt-6 border border-hairline bg-raised">
+        {FACTS.map(([k, v], i) => (
+          <div
+            key={k}
+            className={`grid gap-1 px-5 py-3.5 sm:grid-cols-[140px_1fr] ${
+              i > 0 ? "border-t border-hairline" : ""
+            }`}
+          >
+            <dt className="t-overline pt-0.5">{k}</dt>
+            <dd className="text-[15px] text-ink-2">{v}</dd>
           </div>
-        </div>
-      </section>
+        ))}
+      </dl>
 
-      {/* CTA Section */}
-      <section className="py-16 md:py-20">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center space-y-6">
-            <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold">
-              Ready to find your dream job?
-            </h2>
-            <p className="text-lg md:text-xl opacity-80">
-              Join thousands of successful job seekers on JobQ
-            </p>
-            <div className="pt-4">
-              <Link href="/jobs">
-                <Button size="lg" className="gap-2 h-12 px-8 text-base">
-                  Get Started
-                  <ArrowRight size={18} />
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <div className="mt-10 flex flex-wrap gap-3">
+        <Link href="/jobs" className="btn-primary-sm">
+          Browse open roles
+        </Link>
+        <a
+          href="https://github.com/satyansh911/JobQ"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="border border-line-strong px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
+        >
+          View the source
+        </a>
+      </div>
     </div>
   );
-};
-
-export default About;
+}

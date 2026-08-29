@@ -1,127 +1,112 @@
 "use client";
-import { formatSalary } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
-import { Application } from "@/type";
-import {
-  Briefcase,
-  CheckCircle2,
-  Clock,
-  DollarSign,
-  Eye,
-  XCircle,
-} from "lucide-react";
+
+import React, { useState } from "react";
 import Link from "next/link";
-import React from "react";
+import { Application } from "@/type";
+import { formatSalary, cn } from "@/lib/utils";
+import { StatusBadge, statusKind } from "@/components/status-badge";
 
-interface AppliedJobsProps {
-  applications: Application[];
-}
+const TABS = ["All", "Submitted", "Hired", "Rejected"] as const;
 
-const AppliedJobs: React.FC<AppliedJobsProps> = ({ applications }) => {
-  const getStatusConfig = (status: string) => {
-    switch (status.toLowerCase()) {
-      case "hired":
-        return {
-          icon: CheckCircle2,
-          color: "text-green-600 dark:bg-green-900/30",
-          bg: "bg-green-100 dark:bg-green-900/30",
-          border: "border-green-200 dark:border-green-800",
-        };
-      case "rejected":
-        return {
-          icon: XCircle,
-          color: "text-red-600 dark:bg-red-900/30",
-          bg: "bg-red-100 dark:bg-red-900/30",
-          border: "border-red-200 dark:border-red-800",
-        };
-      default:
-        return {
-          icon: Clock,
-          color: "text-yellow-600 dark:bg-yellow-900/30",
-          bg: "bg-yellow-100 dark:bg-yellow-900/30",
-          border: "border-yellow-200 dark:border-yellow-800",
-        };
-    }
-  };
+const AppliedJobs = ({ applications }: { applications: Application[] }) => {
+  const [tab, setTab] = useState<(typeof TABS)[number]>("All");
+
+  const list = applications || [];
+  const filtered = tab === "All" ? list : list.filter((a) => a.status === tab);
+  const countFor = (t: string) =>
+    t === "All" ? list.length : list.filter((a) => a.status === t).length;
+
   return (
-    <div className="max-w-6xl mx-auto px-4 py-6">
-      <Card className="shadow-lg border-2 overflow-hidden">
-        <div className="bg-gradient-to-r from-[#0B2551] to-[#00d2ff]/30 text-white p-6 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-              <Briefcase size={20} className="text-blue-600" />
-            </div>
-          </div>
-          <h1 className="text-2xl font-bold">Your Applied Jobs</h1>
-          <p className="text-sm font-bold">
-            {applications.length} applications submitted
-          </p>
+    <section className="mt-6 border border-hairline bg-raised">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-6 py-4">
+        <h2 className="t-h3">Applications</h2>
+        <div className="flex flex-wrap gap-1">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              aria-pressed={tab === t}
+              className={cn(
+                "border px-2.5 py-1 text-[13px]",
+                tab === t
+                  ? "border-primary bg-primary text-white"
+                  : "border-line-strong text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
+              )}
+            >
+              {t} <span className="numeric">{countFor(t)}</span>
+            </button>
+          ))}
         </div>
+      </div>
 
-        <div className="p-6">
-          {applications && applications.length > 0 ? (
-            <div className="space-y-4">
-              {applications.map((a) => {
-                const statusConfig = getStatusConfig(a.status);
-                const StatusIcon = statusConfig.icon;
-
-                return (
-                  <div
-                    key={a.application_id}
-                    className="p-5 rounded-lg border-2 hover:border-blue-500 transition-all bg-background"
-                  >
-                    <div className="flex items-start justify-between gap-4 flex-wrap">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="text-xl font-semibold mb-3">
-                          {a.job_title}
-                        </h3>
-
-                        <div className="flex flex-wrap gap-4 items-center">
-                          <div className="flex items-center gap-2 text-sm">
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-900/30 text-green-600">
-                              <DollarSign size={14} />
-                              <span className="font-medium">
-                                {formatSalary(a.job_salary)}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div
-                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border ${statusConfig.bg} ${statusConfig.border}`}
-                          >
-                            <StatusIcon
-                              size={14}
-                              className={statusConfig.color}
-                            />
-                            <span
-                              className={`font-medium text-sm ${statusConfig.color}`}
-                            >
-                              {a.status}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <Link
-                        href={`/jobs/${a.job_id}`}
-                        className="shrink-0 flex items-center justify-center gap-1.5"
-                      >
-                        <Eye size={16} />
-                        View Job
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <>
-              <p>No Applications Yet</p>
-            </>
+      {filtered.length === 0 ? (
+        <div className="px-6 py-10 text-center">
+          <p className="t-body-sm">
+            {list.length === 0
+              ? "You haven't applied to anything yet."
+              : `No ${tab.toLowerCase()} applications.`}
+          </p>
+          {list.length === 0 && (
+            <Link href="/jobs" className="btn-primary-sm mt-4">
+              Browse open roles
+            </Link>
           )}
         </div>
-      </Card>
-    </div>
+      ) : (
+        <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[620px] text-left">
+              <thead>
+                <tr className="border-b border-hairline">
+                  {["Role", "Salary", "Applied", "Status", ""].map((h) => (
+                    <th key={h} className="t-overline px-6 py-2.5 font-semibold">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a) => (
+                  <tr key={a.application_id} className="border-b border-hairline last:border-0">
+                    <td className="px-6 py-3">
+                      <p className="font-[family-name:var(--font-display)] text-[16px] font-semibold text-ink">
+                        {a.job_title}
+                      </p>
+                      <p className="t-body-sm">{a.job_location}</p>
+                    </td>
+                    <td className="numeric px-6 py-3 text-[15px] text-ink">
+                      {formatSalary(a.job_salary)}
+                    </td>
+                    <td className="numeric px-6 py-3 text-[14px] text-ink-3">
+                      {new Date(a.applied_at).toLocaleDateString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </td>
+                    <td className="px-6 py-3">
+                      <StatusBadge kind={statusKind(a.status)}>{a.status}</StatusBadge>
+                    </td>
+                    <td className="px-6 py-3">
+                      <Link href={`/jobs/${a.job_id}`} className="text-[14px]">
+                        View job
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {list.length <= 2 && (
+            <p className="t-body-sm border-t border-hairline px-6 py-4">
+              Nothing here changes until a recruiter moves you.{" "}
+              <Link href="/jobs">Browse open roles</Link>.
+            </p>
+          )}
+        </>
+      )}
+    </section>
   );
 };
 

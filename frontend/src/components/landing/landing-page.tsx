@@ -362,16 +362,18 @@ const Honest = ({ jobs }: { jobs: Job[] }) => {
   const salaries = jobs
     .map((j) => Number(j.salary))
     .filter((n) => Number.isFinite(n) && n > 0);
+  /* Reuse formatSalary at both ends: rounding to whole lakhs turns any
+     sub-lakh posting into "₹0", which reads as broken rather than cheap. */
   const range =
     salaries.length > 0
-      ? `₹${Math.round(Math.min(...salaries) / 100000)}–${Math.round(
-          Math.max(...salaries) / 100000
-        )}`
+      ? Math.min(...salaries) === Math.max(...salaries)
+        ? formatSalary(Math.min(...salaries))
+        : `${formatSalary(Math.min(...salaries))} – ${formatSalary(Math.max(...salaries))}`
       : "—";
 
   const facts = [
     { figure: String(jobs.length), label: `roles open across ${companies} companies` },
-    { figure: range, label: "LPA range on live postings" },
+    { figure: range, label: "salary range on live postings" },
     { figure: String(cities), label: "cities plus remote" },
     { figure: "Open", label: "source — the whole stack is on GitHub" },
   ];
@@ -387,7 +389,7 @@ const Honest = ({ jobs }: { jobs: Job[] }) => {
         <dl className="mt-8 grid grid-cols-2 gap-6 lg:grid-cols-4">
           {facts.map((f) => (
             <div key={f.label} className="border-t border-line-strong pt-4">
-              <dt className="numeric font-[family-name:var(--font-display)] text-[2rem] font-semibold leading-none text-ink">
+              <dt className="numeric font-[family-name:var(--font-display)] text-[1.75rem] font-semibold leading-tight text-ink">
                 {f.figure}
               </dt>
               <dd className="t-body-sm mt-2">{f.label}</dd>

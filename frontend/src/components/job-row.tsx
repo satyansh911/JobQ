@@ -71,8 +71,12 @@ export function JobRow({ job, applied }: { job: Job; applied?: boolean }) {
 
           <ul className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
             {job.location && <li>{job.location}</li>}
-            <li aria-hidden>·</li>
-            <li>{job.work_location}</li>
+            {job.location !== job.work_location && (
+              <>
+                <li aria-hidden>·</li>
+                <li>{job.work_location}</li>
+              </>
+            )}
             <li aria-hidden>·</li>
             <li>{job.job_type}</li>
             {Number(job.openings) > 0 && (

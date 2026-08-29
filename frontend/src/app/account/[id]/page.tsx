@@ -40,7 +40,7 @@ const UserAccount = () => {
   return (
     <>
       {user && (
-        <div className="w-[90%] md:w-[60%] m-auto">
+        <div className="mx-auto max-w-[900px] px-4 py-8 md:px-6 md:py-10">
           <Info user={user} isYourAccount={false} />
           {user.role === "jobseeker" && (
             <Skills user={user} isYourAccount={false} />

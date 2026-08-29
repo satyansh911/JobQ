@@ -39,7 +39,7 @@ const ResumeAnalyzer = () => {
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type !== "application/pdf") {
+      if (selectedFile.type !=="application/pdf") {
         toast.error("Please upload a PDF file");
         return;
       }
@@ -78,7 +78,7 @@ const ResumeAnalyzer = () => {
       setResponse(data);
       toast.success("Resume analyzed successfully!");
     } catch (error: any) {
-      toast.error(error.response?.data?.message || "Failed to analyze resume");
+      toast.error(error.response?.data?.message ||"Failed to analyze resume");
       console.log(error);
     } finally {
       setLoading(false);
@@ -90,28 +90,28 @@ const ResumeAnalyzer = () => {
     setResponse(null);
     setOpen(false);
     if (fileInputRef.current) {
-      fileInputRef.current.value = "";
+      fileInputRef.current.value ="";
     }
   };
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return "text-green-400";
-    if (score >= 60) return "text-yellow-400";
-    return "text-red-400";
+    if (score >= 80) return "text-ok-text";
+    if (score >= 60) return "text-warn-text";
+    return "text-bad-text";
   };
 
   const getScoreBgColor = (score: number) => {
-    if (score >= 80) return "bg-green-100 dark:bg-green-900/30";
-    if (score >= 60) return "bg-yellow-100 dark:bg-yellow-900/30";
-    return "bg-red-100 dark:bg-red-900/30";
+    if (score >= 80) return "bg-ok-tint";
+    if (score >= 60) return "bg-warn-tint";
+    return "bg-bad-tint";
   };
 
   const getPriorityColor = (priority: string) => {
-    if (priority === "high")
-      return "bg-red-100 dark:bg-red-900/30 text-red-400 border-red-200 dark:border-red-800";
-    if (priority === "medium")
-      return "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-400 border-yellow-200 dark:border-yellow-800";
-    return "bg-blue-100 dark:bg-blue-900/30 text-blue-400 border-blue-200 dark:border-blue-800";
+    if (priority ==="high")
+      return "status-bad";
+    if (priority ==="medium")
+      return "bg-warn-tint text-warn-text border-yellow-200 800";
+    return "bg-blue-100 900/30 text-blue-400 border-blue-200 800";
   };
 
   return (
@@ -141,12 +141,12 @@ const ResumeAnalyzer = () => {
             </button>
           </DialogTrigger>
 
-          <DialogContent className="dark max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             {!response ? (
               <>
                 <DialogHeader>
                   <DialogTitle className="text-2xl flex items-center gap-2">
-                    <FileText className="text-red-500" />
+                    <FileText className="text-bad-text" />
                     Upload Your Resume
                   </DialogTitle>
                   <DialogDescription>
@@ -158,22 +158,22 @@ const ResumeAnalyzer = () => {
                 <div className="space-y-4 py-4">
                   <div
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed rounded-lg p-12 text-center cursor-pointer hover:border-blue-500 transition-colors"
+                    className="border-2 border-dashed  p-12 text-center cursor-pointer hover:border-blue-500 transition-colors"
                   >
                     <div className="flex flex-col items-center gap-4">
-                      <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                        <Upload size={32} className="text-blue-600" />
+                      <div className="h-16 w-16  bg-steel-100 flex items-center justify-center">
+                        <Upload size={32} className="text-steel-700" />
                       </div>
                       <div>
                         <p className="font-medium mb-1">
-                          {file ? file.name : "Click to upload your resume"}
+                          {file ? file.name :"Click to upload your resume"}
                         </p>
                         <p className="text-sm opacity-60">
                           PDF format only, maximum 5MB
                         </p>
                       </div>
                       {file && (
-                        <div className="flex items-center gap-2 text-green-600">
+                        <div className="flex items-center gap-2 text-ok-text">
                           <CheckCircle2 size={18} />
                           <span className="text-sm font-medium">
                             File uploaded successfully
@@ -214,7 +214,7 @@ const ResumeAnalyzer = () => {
               <>
                 <DialogHeader>
                   <DialogTitle className="text-2xl flex items-center gap-2">
-                    <FileCheck className="text-red-500" />
+                    <FileCheck className="text-bad-text" />
                     Your Resume Analysis
                   </DialogTitle>
                 </DialogHeader>
@@ -222,7 +222,7 @@ const ResumeAnalyzer = () => {
                 <div className="space-y-6 py-4">
                   {/* Overall Score */}
                   <div
-                    className={`p-6 rounded-lg ${getScoreBgColor(
+                    className={`p-6  ${getScoreBgColor(
                       response.atsScore
                     )} border-2`}
                   >
@@ -243,8 +243,7 @@ const ResumeAnalyzer = () => {
 
                   {/* Summary */}
                   <div
-                    className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border 
-border-blue-200 dark:border-blue-800"
+                    className="p-4  border border-hairline bg-steel-100"
                   >
                     <p className="text-sm leading-relaxed">
                       {response.summary}
@@ -254,13 +253,13 @@ border-blue-200 dark:border-blue-800"
                   {/* Score Breakdown */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <TrendingUp size={20} className="text-red-500" />
+                      <TrendingUp size={20} className="text-bad-text" />
                       Detailed Score Breakdown
                     </h3>
                     <div className="grid md:grid-cols-2 gap-3">
                       {Object.entries(response.scoreBreakdown).map(
                         ([key, value]) => (
-                          <div key={key} className="p-4 rounded-lg border">
+                          <div key={key} className="p-4  border">
                             <div className="flex items-center justify-between mb-2">
                               <p className="font-semibold capitalize">{key}</p>
                               <span
@@ -282,11 +281,10 @@ border-blue-200 dark:border-blue-800"
 
                   {/* Strengths */}
                   <div
-                    className="p-4 rounded-lg bg-green-50 dark:bg-green-950/30 border 
-border-green-200 dark:border-green-800"
+                    className="p-4  border border-hairline bg-ok-tint"
                   >
                     <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <CheckCircle2 size={18} className="text-green-400" />
+                      <CheckCircle2 size={18} className="text-ok-text" />
                       What Your Resume Does Well
                     </h3>
                     <ul className="space-y-2">
@@ -295,7 +293,7 @@ border-green-200 dark:border-green-800"
                           key={index}
                           className="text-sm flex items-start gap-2"
                         >
-                          <span className="text-green-600 mt-0.5">✓</span>
+                          <span className="text-ok-text mt-0.5">✓</span>
                           <span>{strength}</span>
                         </li>
                       ))}
@@ -305,18 +303,18 @@ border-green-200 dark:border-green-800"
                   {/* Suggestions */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <AlertTriangle size={20} className="text-red-500" />
+                      <AlertTriangle size={20} className="text-bad-text" />
                       Recommendations for Improvement
                     </h3>
                     <div className="space-y-3">
                       {response.suggestions.map((suggestion, index) => (
-                        <div key={index} className="p-4 rounded-lg border">
+                        <div key={index} className="p-4  border">
                           <div className="flex items-start justify-between gap-3 mb-2">
                             <h4 className="font-semibold text-sm">
                               {suggestion.category}
                             </h4>
                             <span
-                              className={`text-xs px-2 py-1 rounded-full border 
+                              className={`text-xs px-2 py-1  border 
 ${getPriorityColor(suggestion.priority)}`}
                             >
                               {suggestion.priority}
@@ -325,7 +323,7 @@ ${getPriorityColor(suggestion.priority)}`}
                           <div className="space-y-2 text-sm">
                             <div>
                               <span className="font-medium opacity-70">
-                                Issue:{" "}
+                                Issue:{""}
                               </span>
                               <span className="opacity-80">
                                 {suggestion.issue}
@@ -333,7 +331,7 @@ ${getPriorityColor(suggestion.priority)}`}
                             </div>
                             <div>
                               <span className="font-medium opacity-70">
-                                Fix:{" "}
+                                Fix:{""}
                               </span>
                               <span className="opacity-80">
                                 {suggestion.recommendation}

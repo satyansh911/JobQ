@@ -49,7 +49,7 @@ const CareerGuide = () => {
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+    if (e.key ==="Enter") {
       addSkill();
     }
   };
@@ -107,12 +107,12 @@ const CareerGuide = () => {
             </button>
           </DialogTrigger>
 
-          <DialogContent className="dark max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             {!response ? (
               <>
                 <DialogHeader>
                   <DialogTitle className="text-2xl flex items-center gap-2">
-                    <Sparkles className="text-blue-600" />
+                    <Sparkles className="text-steel-700" />
                     Tell us about your skills
                   </DialogTitle>
                   <DialogDescription>
@@ -146,12 +146,12 @@ const CareerGuide = () => {
                         {skills.map((s) => (
                           <div
                             key={s}
-                            className="inline-flex items-center gap-2 pl-3 pr-2 py-1.5 rounded-full bg-blue-100 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-800"
+                            className="inline-flex items-center gap-2 pl-3 pr-2 py-1.5  border border-steel-200 bg-steel-100 text-steel-800"
                           >
                             <span className="text-sm font-medium">{s}</span>
                             <button
                               onClick={() => removeSkill(s)}
-                              className="h-5 w-5 rounded-full bg-red-500 text-white flex in-checked: justify-center"
+                              className="h-5 w-5  bg-bad text-white flex in-checked: justify-center"
                             >
                               <X size={13} />
                             </button>
@@ -183,17 +183,17 @@ const CareerGuide = () => {
               <>
                 <DialogHeader>
                   <DialogTitle className="text-2xl flex items-center gap-2">
-                    <Target className="text-blue-600" />
+                    <Target className="text-steel-700" />
                     Your Personalized Career Guide
                   </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
                   {/* summary */}
-                  <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-b-blue-200 dark:border-b-blue-800">
+                  <div className="p-4  border border-hairline bg-steel-100">
                     <div className="flex items-start gap-3">
                       <Lightbulb
-                        className="text-blue-600 mt-1 shrink-0"
+                        className="text-steel-700 mt-1 shrink-0"
                         size={20}
                       />
                       <div>
@@ -208,13 +208,13 @@ const CareerGuide = () => {
                   {/* job options */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <Briefcase size={20} className="text-blue-600" />
+                      <Briefcase size={20} className="text-steel-700" />
                       Recommended Career Paths
                     </h3>
                     <div className="space-y-3">
                       {response.jobOptions.map((job, index) => (
                         <div
-                          className="p-4 rounded-lg border hover:border-blue-500 transition-colors"
+                          className="p-4  border hover:border-blue-500 transition-colors"
                           key={index}
                         >
                           <h4 className="font-semibold text-base mb-2">
@@ -224,14 +224,14 @@ const CareerGuide = () => {
                           <div className="space-y-2 text-sm">
                             <div>
                               <span className="font-medium opacity-70">
-                                Responsibilities:{" "}
+                                Responsibilities:{""}
                               </span>
                               <span className="opacity-80">
                                 {job.responsibilities}
                               </span>
                             </div>
                             <span className="font-medium opacity-70">
-                              Why this Role:{" "}
+                              Why this Role:{""}
                             </span>
                             <span className="opacity-80">{job.why}</span>
                           </div>
@@ -243,20 +243,20 @@ const CareerGuide = () => {
                   {/* Skills to learn */}
                   <div>
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <TrendingUp size={20} className="text-blue-600" />
+                      <TrendingUp size={20} className="text-steel-700" />
                       Skills to Enhance Your Career
                     </h3>
                     <div className="space-y-4">
                       {response.skillsToLearn.map((category, index) => (
                         <div className="space-y-2" key={index}>
-                          <h4 className="font-semibold text-sm text-blue-600">
+                          <h4 className="font-semibold text-sm text-steel-700">
                             {category.category}
                           </h4>
                           <div className="space-y-2">
                             {category.skills.map((skill, sindex) => (
                               <div
                                 key={sindex}
-                                className="p-3 rounded-lg bg-white/[0.04] border border-white/10 text-sm"
+                                className="p-3  bg-white/[0.04] border border-white/10 text-sm"
                               >
                                 <p className="font-medium mb-1">
                                   {skill.title}
@@ -280,9 +280,9 @@ const CareerGuide = () => {
                   </div>
 
                   {/* Learning approach */}
-                  <div className="p-4 rounded-lg border bg-blue-950/20 dark:bg-red-950/20">
+                  <div className="p-4  border bg-blue-950/20 950/20">
                     <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                      <BookOpen size={20} className="text-blue-600" />
+                      <BookOpen size={20} className="text-steel-700" />
                       {response?.learningApproach?.title}
                     </h3>
 
@@ -293,7 +293,7 @@ const CareerGuide = () => {
                             key={index}
                             className="text-sm flex items-start gap-2"
                           >
-                            <span className="text-blue-600 mt-0.5">•</span>
+                            <span className="text-steel-700 mt-0.5">•</span>
                             <span
                               className="opacity-90"
                               dangerouslySetInnerHTML={{ __html: point }}

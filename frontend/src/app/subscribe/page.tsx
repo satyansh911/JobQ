@@ -7,9 +7,7 @@ import axios from "axios";
 import { payment_service, useAppData } from "@/context/AppContext";
 import toast from "react-hot-toast";
 import Loading from "@/components/loading";
-import { Card } from "@/components/ui/card";
-import { CheckCircle, Crown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
 
 const SubscriptionPage = () => {
   const razorpayLoaded = useRazorpay();
@@ -86,42 +84,49 @@ const SubscriptionPage = () => {
   };
 
   if (loading) return <Loading />;
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12">
-      <Card className="max-w-md w-full p-8 text-center shadow-lg border-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 mb-4">
-          <Crown size={32} className="text-blue-600" />
+    <div className="mx-auto max-w-[560px] px-4 py-12 md:py-16">
+      <p className="t-overline">Priority placement</p>
+      <h1 className="t-h1 mt-3">Be at the top of the list</h1>
+      <p className="t-body mt-3">
+        Recruiters review applicants in one table. Priority puts yours at the
+        top of it, and marks you so they can see why.
+      </p>
+
+      <div className="mt-8 border border-hairline bg-raised">
+        <div className="flex items-baseline gap-2 border-b border-hairline px-6 py-5">
+          <span className="numeric font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-none text-ink">
+            ₹119
+          </span>
+          <span className="t-body-sm">per month</span>
         </div>
 
-        <h1 className="text-3xl font-bold mb-2">Premium Subscription</h1>
-        <p className="text-sm opacity-70 mb-6">Boost your job search</p>
+        <ul className="space-y-3 px-6 py-5">
+          {[
+            "Your application is surfaced first in every recruiter's list",
+            "A priority marker on your row, so it is clear why",
+            "Cancel any time — it simply stops renewing",
+          ].map((line) => (
+            <li key={line} className="flex gap-3">
+              <Check className="mt-0.5 size-4 shrink-0 text-ok" />
+              <span className="text-[15px] text-ink-2">{line}</span>
+            </li>
+          ))}
+        </ul>
 
-        <div className="mb-6">
-          <p className="text-5xl font-bold text-blue-600">₹ 119</p>
-          <p className="text-sm opacity-60 mt-1">Per month</p>
+        <div className="border-t border-hairline px-6 py-5">
+          <button
+            onClick={handleSubscribe}
+            className="btn-primary-sm w-full justify-center"
+          >
+            Go priority
+          </button>
+          <p className="t-body-sm mt-3 text-center">
+            Payment is handled by Razorpay. Test mode — no real charge.
+          </p>
         </div>
-
-        <div className="space-y-3 mb-8 text-left">
-          <div className="flex items-start gap-3">
-            <CheckCircle size={20} className="text-green-600 shrink-0 mt-0.5" />
-            <p className="text-sm">
-              Your application will be shown first to recruiters
-            </p>
-          </div>
-
-          <div className="flex items-start gap-3">
-            <CheckCircle size={20} className="text-green-600 shrink-0 mt-0.5" />
-            <p className="text-sm">Priority support</p>
-          </div>
-        </div>
-
-        <Button
-          onClick={handleSubscribe}
-          className="w-full h-12 text-base gap-2"
-        >
-          <Crown size={18} /> Subscribe Now
-        </Button>
-      </Card>
+      </div>
     </div>
   );
 };
