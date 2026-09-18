@@ -79,6 +79,12 @@ async function initDB() {
 }
 
 initDB().then(() => {
+
+  // Liveness probe for Docker healthchecks and load balancers.
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", service: "job" });
+  });
+
   app.listen(process.env.PORT, () => {
     console.log(
       `Job service is running on http://localhost:${process.env.PORT}`

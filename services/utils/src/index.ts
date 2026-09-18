@@ -27,6 +27,12 @@ app.use("/uploads", express.static(UPLOAD_DIR));
 
 app.use("/api/utils", routes);
 
+
+// Liveness probe for Docker healthchecks and load balancers.
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: "utils" });
+});
+
 app.listen(process.env.PORT, () => {
   console.log(
     `Utils Service is running on http://localhost:${process.env.PORT}`

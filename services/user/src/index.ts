@@ -11,6 +11,12 @@ app.use(express.json());
 
 app.use("/api/user", userRoutes);
 
+
+// Liveness probe for Docker healthchecks and load balancers.
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: "user" });
+});
+
 app.listen(process.env.PORT, () => {
   console.log(
     `User service is running on http://localhost:${process.env.PORT}`

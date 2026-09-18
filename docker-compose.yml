@@ -1,0 +1,181 @@
+# JobQ — full stack in one command.
+#
+# Postgres (Neon) and Redis (Upstash) are managed services and stay external;
+# each service reaches them over the internet using the credentials in its own
+# services/<name>/.env. Kafka is the only infrastructure container here.
+#
+#   cp .env.docker.example .env      # then edit PUBLIC_HOST if not local
+#   docker compose up --build
+#
+# Secrets are never baked into an image: .dockerignore excludes .env, and the
+# files below are read at runtime via env_file. The `environment:` blocks
+# override the localhost URLs in those files with in-network service names,
+# because compose applies `environment` after `env_file`.
+
+name: jobq
+
+services:
+  kafka:
+    image: apache/kafka:4.1.0
+    container_name: jobq-kafka
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      CLUSTER_ID: jobq-local-cluster-01
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    # The broker accepts TCP connections well before it can serve metadata.
+    # Listing topics is the cheapest call that proves it is actually ready,
+    # so producers do not start into a retry storm on a cold boot.
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
+  auth:
+    build: ./services/auth
+    container_name: jobq-auth
+    env_file: ./services/auth/.env
+    environment:
+      PORT: 5050
+      Kafka_Broker: kafka:9092
+      UPLOAD_SERVICE: http://utils:5001
+      Frontend_Url: ${PUBLIC_HOST:-http://localhost}:3000
+    ports:
+      - "5050:5050"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5050/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  utils:
+    build: ./services/utils
+    container_name: jobq-utils
+    env_file: ./services/utils/.env
+    environment:
+      PORT: 5001
+      Kafka_Broker: kafka:9092
+      # Written into URLs handed back to the browser for locally-stored
+      # uploads, so it must be reachable from outside the network.
+      SELF_URL: ${PUBLIC_HOST:-http://localhost}:5001
+    ports:
+      - "5001:5001"
+    volumes:
+      # Uploads land on the container filesystem when Cloudinary is
+      # unavailable; without this they vanish on every restart.
+      - uploads:/app/uploads
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5001/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  user:
+    build: ./services/user
+    container_name: jobq-user
+    env_file: ./services/user/.env
+    environment:
+      PORT: 5002
+      UPLOAD_SERVICE: http://utils:5001
+    ports:
+      - "5002:5002"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5002/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  job:
+    build: ./services/job
+    container_name: jobq-job
+    env_file: ./services/job/.env
+    environment:
+      PORT: 5003
+      Kafka_Broker: kafka:9092
+      UPLOAD_SERVICE: http://utils:5001
+    ports:
+      - "5003:5003"
+    depends_on:
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5003/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  payment:
+    build: ./services/payment
+    container_name: jobq-payment
+    env_file: ./services/payment/.env
+    environment:
+      PORT: 5004
+    ports:
+      - "5004:5004"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5004/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  frontend:
+    container_name: jobq-frontend
+    build:
+      context: ./frontend
+      # These are compiled into the client bundle, so they are build args
+      # rather than environment. They must be URLs the visitor's browser can
+      # reach — in-network names like http://auth:5050 would not resolve.
+      args:
+        NEXT_PUBLIC_AUTH_SERVICE: ${PUBLIC_HOST:-http://localhost}:5050
+        NEXT_PUBLIC_UTILS_SERVICE: ${PUBLIC_HOST:-http://localhost}:5001
+        NEXT_PUBLIC_USER_SERVICE: ${PUBLIC_HOST:-http://localhost}:5002
+        NEXT_PUBLIC_JOB_SERVICE: ${PUBLIC_HOST:-http://localhost}:5003
+        NEXT_PUBLIC_PAYMENT_SERVICE: ${PUBLIC_HOST:-http://localhost}:5004
+    ports:
+      - "3000:3000"
+    depends_on:
+      - auth
+      - utils
+      - user
+      - job
+      - payment
+    restart: unless-stopped
+
+volumes:
+  kafka-data:
+  uploads:

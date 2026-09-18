@@ -75,6 +75,24 @@ The frontend reads service URLs from `frontend/.env.local` (see
 
 ## Running
 
+### With Docker (one command)
+
+```bash
+cp .env.docker.example .env      # PUBLIC_HOST=http://localhost for local use
+docker compose up --build
+```
+
+Brings up all six services plus Kafka. The services wait for the broker to
+report healthy rather than racing it, so a cold boot needs no retries. Open
+<http://localhost:3000>.
+
+Each service still reads its secrets from its own `services/<name>/.env`;
+compose only overrides the URL-shaped variables with in-network addresses.
+See [deploy/README.md](deploy/README.md) for the EC2 walkthrough and the
+`NEXT_PUBLIC_*` build-time caveat.
+
+### Without Docker
+
 Start Kafka once:
 
 ```bash

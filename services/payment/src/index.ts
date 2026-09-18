@@ -17,6 +17,12 @@ app.use(cors());
 app.use(express.json());
 app.use("/api/payment", paymentRoutes);
 
+
+// Liveness probe for Docker healthchecks and load balancers.
+app.get("/health", (_req, res) => {
+  res.json({ status: "ok", service: "payment" });
+});
+
 app.listen(process.env.PORT, () => {
   console.log(`Payment Service is running on ${process.env.PORT}`);
 });
