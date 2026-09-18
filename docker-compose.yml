@@ -33,6 +33,10 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       CLUSTER_ID: jobq-local-cluster-01
+      # Kafka defaults to a 1GB heap, which alone exceeds a free-tier box.
+      # This topic carries one small JSON message per signup or application,
+      # so a fraction of that is ample.
+      KAFKA_HEAP_OPTS: "-Xmx320m -Xms160m"
     volumes:
       - kafka-data:/var/lib/kafka/data
     # The broker accepts TCP connections well before it can serve metadata.
