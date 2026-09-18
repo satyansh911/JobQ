@@ -1,0 +1,119 @@
+#!/usr/bin/env bash
+#
+# Start, stop and check the deployed JobQ instance.
+#
+#   ./deploy/jobq start     bring it up (waits until the app actually answers)
+#   ./deploy/jobq stop      shut it down, stop burning credits
+#   ./deploy/jobq status    what is it doing and what is that costing
+#   ./deploy/jobq ssh       shell onto the box
+#   ./deploy/jobq logs      tail the container logs
+#
+# Stopping keeps the disk and the Elastic IP, so the URL never changes.
+
+set -euo pipefail
+
+REGION="ap-south-1"
+NAME_TAG="jobq"
+KEY="$HOME/.ssh/jobq-key.pem"
+
+export AWS_DEFAULT_REGION="$REGION"
+
+# Resolve by tag rather than a hardcoded id, so this keeps working if the
+# instance is ever rebuilt.
+instance_id() {
+  aws ec2 describe-instances \
+    --filters "Name=tag:Name,Values=${NAME_TAG}" \
+              "Name=instance-state-name,Values=pending,running,stopping,stopped" \
+    --query 'Reservations[0].Instances[0].InstanceId' --output text 2>/dev/null
+}
+
+ID="$(instance_id)"
+if [ -z "$ID" ] || [ "$ID" = "None" ]; then
+  echo "No instance tagged Name=${NAME_TAG} in ${REGION}."
+  echo "Has it been terminated? Redeploy with deploy/ec2-bootstrap.sh."
+  exit 1
+fi
+
+state() {
+  aws ec2 describe-instances --instance-ids "$ID" \
+    --query 'Reservations[0].Instances[0].State.Name' --output text
+}
+
+ip() {
+  aws ec2 describe-instances --instance-ids "$ID" \
+    --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
+}
+
+case "${1:-status}" in
+
+  start)
+    s="$(state)"
+    if [ "$s" = "running" ]; then
+      echo "Already running — http://$(ip):3000"
+      exit 0
+    fi
+    echo "Starting ${ID}…"
+    aws ec2 start-instances --instance-ids "$ID" >/dev/null
+    aws ec2 wait instance-running --instance-ids "$ID"
+    IP="$(ip)"
+    echo "Instance up at ${IP}. Waiting for the containers…"
+    # The machine is reachable well before the app is; poll the real page.
+    for _ in $(seq 1 60); do
+      if curl -fsS -o /dev/null --max-time 5 "http://${IP}:3000" 2>/dev/null; then
+        echo
+        echo "  Ready → http://${IP}:3000"
+        exit 0
+      fi
+      sleep 5
+    done
+    echo "  Containers did not answer within five minutes."
+    echo "  Check with: $0 logs"
+    exit 1
+    ;;
+
+  stop)
+    s="$(state)"
+    if [ "$s" = "stopped" ]; then echo "Already stopped."; exit 0; fi
+    echo "Stopping ${ID}…"
+    aws ec2 stop-instances --instance-ids "$ID" >/dev/null
+    aws ec2 wait instance-stopped --instance-ids "$ID"
+    echo "Stopped. Disk and Elastic IP kept, so the URL is unchanged."
+    echo "Now costing roughly \$3.60/mo (idle Elastic IP) instead of ~\$9."
+    ;;
+
+  status)
+    s="$(state)"
+    echo "  instance : ${ID}"
+    echo "  state    : ${s}"
+    if [ "$s" = "running" ]; then
+      IP="$(ip)"
+      echo "  url      : http://${IP}:3000"
+      printf "  app      : "
+      if curl -fsS -o /dev/null --max-time 6 "http://${IP}:3000" 2>/dev/null; then
+        echo "answering"
+      else
+        echo "not answering yet"
+      fi
+      echo "  cost     : ~\$9/mo while running"
+    else
+      echo "  cost     : ~\$3.60/mo (idle Elastic IP)"
+      echo "  start it : $0 start"
+    fi
+    ;;
+
+  ssh)
+    [ "$(state)" = "running" ] || { echo "Instance is not running. $0 start"; exit 1; }
+    exec ssh -o StrictHostKeyChecking=no -i "$KEY" "ec2-user@$(ip)"
+    ;;
+
+  logs)
+    [ "$(state)" = "running" ] || { echo "Instance is not running. $0 start"; exit 1; }
+    ssh -o StrictHostKeyChecking=no -i "$KEY" "ec2-user@$(ip)" \
+      'cd /opt/jobq && docker compose logs --tail=60 -f'
+    ;;
+
+  *)
+    echo "usage: $0 {start|stop|status|ssh|logs}"
+    exit 1
+    ;;
+esac

@@ -109,6 +109,26 @@ docker compose up -d --build
 The bootstrap script writes `PUBLIC_HOST` from the instance metadata, so the
 frontend builds against the right public address.
 
+## Day-to-day: starting and stopping
+
+`deploy/jobq` wraps the instance controls so this is one command rather than
+four clicks in the console:
+
+```bash
+./deploy/jobq start     # boot it, waits until the app actually answers
+./deploy/jobq stop      # shut it down and stop burning credits
+./deploy/jobq status    # state, URL, and what it is costing
+./deploy/jobq ssh       # shell onto the box
+./deploy/jobq logs      # tail the container logs
+```
+
+A cold start is about 20 seconds — the containers restart themselves, and
+`start` polls the real page rather than returning as soon as the machine
+boots. The Elastic IP is kept across a stop, so the URL never changes.
+
+Running costs roughly $9/mo; stopped, about $3.60/mo for the idle Elastic IP.
+Stopping between demos is worth roughly 2.5x the runway on a credit balance.
+
 ## Before you share the URL
 
 - **Plain HTTP sends passwords in the clear.** Fine for a demo you drive
