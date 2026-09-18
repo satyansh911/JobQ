@@ -10,17 +10,31 @@ import axios from "axios";
  * Service endpoints. Configured via NEXT_PUBLIC_* env vars (see .env.local /
  * .env.example) so deploys don't need a code change; the localhost defaults
  * keep a fresh clone working with no setup.
+ *
+ * Set NEXT_PUBLIC_SAME_ORIGIN_API=1 when something in front of the app proxies
+ * /api/* onward — the Vercel deployment does this with Next.js rewrites. Every
+ * URL then becomes relative (`/api/job/all`), so the browser makes same-origin
+ * HTTPS requests and never trips mixed-content blocking against the plain-HTTP
+ * backend. A flag rather than empty strings because Vercel will not store an
+ * empty environment variable.
  */
-export const utils_service =
-  process.env.NEXT_PUBLIC_UTILS_SERVICE || "http://localhost:5001";
-export const auth_service =
-  process.env.NEXT_PUBLIC_AUTH_SERVICE || "http://localhost:5050";
-export const user_service =
-  process.env.NEXT_PUBLIC_USER_SERVICE || "http://localhost:5002";
-export const job_service =
-  process.env.NEXT_PUBLIC_JOB_SERVICE || "http://localhost:5003";
-export const payment_service =
-  process.env.NEXT_PUBLIC_PAYMENT_SERVICE || "http://localhost:5004";
+const sameOrigin = process.env.NEXT_PUBLIC_SAME_ORIGIN_API === "1";
+
+export const utils_service = sameOrigin
+  ? ""
+  : process.env.NEXT_PUBLIC_UTILS_SERVICE ?? "http://localhost:5001";
+export const auth_service = sameOrigin
+  ? ""
+  : process.env.NEXT_PUBLIC_AUTH_SERVICE ?? "http://localhost:5050";
+export const user_service = sameOrigin
+  ? ""
+  : process.env.NEXT_PUBLIC_USER_SERVICE ?? "http://localhost:5002";
+export const job_service = sameOrigin
+  ? ""
+  : process.env.NEXT_PUBLIC_JOB_SERVICE ?? "http://localhost:5003";
+export const payment_service = sameOrigin
+  ? ""
+  : process.env.NEXT_PUBLIC_PAYMENT_SERVICE ?? "http://localhost:5004";
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 

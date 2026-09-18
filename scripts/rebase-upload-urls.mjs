@@ -19,11 +19,15 @@
  */
 import { neon } from "@neondatabase/serverless";
 
-const [oldOrigin, newOrigin] = process.argv.slice(2).filter((a) => a !== "--dry-run");
+const args = process.argv.slice(2).filter((a) => a !== "--dry-run");
+const [oldOrigin, newOrigin = ""] = args;
 const dryRun = process.argv.includes("--dry-run");
 
-if (!oldOrigin || !newOrigin) {
+// An empty new origin is meaningful: it makes the stored URLs relative
+// (/uploads/x), which is what a proxying frontend needs.
+if (!oldOrigin || args.length < 2) {
   console.error("usage: node scripts/rebase-upload-urls.mjs <old-origin> <new-origin> [--dry-run]");
+  console.error('pass "" as <new-origin> to make the URLs relative');
   process.exit(1);
 }
 if (!process.env.DB_URL) {
@@ -71,5 +75,5 @@ for (const [table, column] of TARGETS) {
 console.log(
   dryRun
     ? `\n${total} row(s) would be rewritten. Re-run without --dry-run to apply.`
-    : `\n${total} row(s) rewritten: ${oldOrigin} -> ${newOrigin}`
+    : `\n${total} row(s) rewritten: ${oldOrigin} -> ${newOrigin || "(relative)"}`
 );

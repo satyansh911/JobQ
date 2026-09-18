@@ -25,8 +25,16 @@ export interface StoredFile {
   driver: "cloudinary" | "local";
 }
 
+/**
+ * Origin to prefix locally-stored upload URLs with.
+ *
+ * An explicitly empty SELF_URL means "emit a relative path" — correct when
+ * something in front of the stack proxies /uploads onward, as the Vercel
+ * deployment does. Absolute URLs baked in here are what break when the app
+ * moves host, or when an HTTPS page has to load them over plain HTTP.
+ */
 const selfUrl = () =>
-  process.env.SELF_URL || `http://localhost:${process.env.PORT || 5001}`;
+  process.env.SELF_URL ?? `http://localhost:${process.env.PORT || 5001}`;
 
 /**
  * Persist a base64 data-URI.

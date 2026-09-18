@@ -85,7 +85,10 @@ services:
       Kafka_Broker: kafka:9092
       # Written into URLs handed back to the browser for locally-stored
       # uploads, so it must be reachable from outside the network.
-      SELF_URL: ${PUBLIC_HOST:-http://localhost}:5001
+      # Empty means "emit a relative /uploads path", which is what the
+      # proxying frontend needs. Set it to an absolute origin only when the
+      # utils service is reached directly.
+      SELF_URL: ${SELF_URL-}
     ports:
       - "5001:5001"
     volumes:
