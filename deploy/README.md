@@ -51,6 +51,25 @@ docker compose exec utils chown -R node:node /app/uploads
 Only needed once, and only while the local-disk driver is in play. Moving to
 S3 removes the problem.
 
+### And rewrite the stored URLs
+
+Copying the files is half of it. The local-disk driver writes an **absolute**
+URL into the database at upload time (`${SELF_URL}/uploads/x`), so rows created
+on one host still point at it after a move — the files are present and every
+image still 404s:
+
+```bash
+docker compose exec job node /app/rebase.mjs \
+  http://localhost:5001 http://<new-host>:5001 --dry-run
+```
+
+Drop `--dry-run` to apply. It touches `companies.logo`, `users.profile_pic`,
+`users.resume` and `applications.resume`, leaves Cloudinary-hosted rows alone,
+and reverses cleanly by swapping the arguments.
+
+Storing a relative path and resolving it at render time would remove the need
+for this entirely; the script exists because the existing rows are absolute.
+
 ## On EC2
 
 A single instance running Compose. Cheaper and simpler than six Fargate tasks,
