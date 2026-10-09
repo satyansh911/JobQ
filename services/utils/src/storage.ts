@@ -20,6 +20,12 @@ const MIME_EXT: Record<string, string> = {
 // No SVG: it can carry script, and these files are served from the app's own
 // origin, so an uploaded SVG opened directly would run with the user's session.
 
+export class UnsupportedTypeError extends Error {
+  constructor(mime: string) {
+    super(`Unsupported file type: ${mime}. Upload a PNG, JPG, WebP, GIF or PDF.`);
+  }
+}
+
 export interface StoredFile {
   url: string;
   public_id: string;
@@ -50,6 +56,13 @@ export async function storeDataUri(
   dataUri: string,
   previousPublicId?: string
 ): Promise<StoredFile> {
+  // Check the type before either driver sees it, so the allowlist holds no
+  // matter which one ends up storing the file.
+  const mime = /^data:([^;]+);base64,/.exec(dataUri)?.[1];
+  if (!mime || !MIME_EXT[mime]) {
+    throw new UnsupportedTypeError(mime ?? "unknown");
+  }
+
   if (previousPublicId) {
     await removeStored(previousPublicId);
   }

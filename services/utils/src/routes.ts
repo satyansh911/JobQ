@@ -1,5 +1,5 @@
 import express, { json } from "express";
-import { storeDataUri } from "./storage.js";
+import { storeDataUri, UnsupportedTypeError } from "./storage.js";
 import { requireInternal, requireUser } from "./guards.js";
 
 const router = express.Router();
@@ -20,6 +20,9 @@ router.post("/upload", requireInternal, async (req, res) => {
       driver: stored.driver,
     });
   } catch (error: any) {
+    if (error instanceof UnsupportedTypeError) {
+      return res.status(415).json({ message: error.message });
+    }
     console.error("[upload]", error);
     res.status(500).json({
       message: error.message || "Upload failed",

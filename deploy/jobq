@@ -48,6 +48,27 @@ ip() {
     --query 'Reservations[0].Instances[0].PublicIpAddress' --output text
 }
 
+
+# SSH is open only to one address. Home connections get a new IP every so
+# often, after which SSH silently refuses — so move the rule to wherever this
+# machine is now before connecting. A no-op when nothing changed.
+allow_me() {
+  local sg me current
+  sg=$(aws ec2 describe-instances --instance-ids "$ID" \
+    --query 'Reservations[0].Instances[0].SecurityGroups[0].GroupId' --output text)
+  me="$(curl -fsS --max-time 8 https://checkip.amazonaws.com | tr -d '\n')/32"
+  current=$(aws ec2 describe-security-groups --group-ids "$sg" \
+    --query "SecurityGroups[0].IpPermissions[?FromPort==\`22\`].IpRanges[].CidrIp" --output text)
+  for cidr in $current; do
+    [ "$cidr" = "$me" ] && return 0
+  done
+  aws ec2 authorize-security-group-ingress --group-id "$sg" --protocol tcp --port 22 --cidr "$me" >/dev/null
+  for cidr in $current; do
+    aws ec2 revoke-security-group-ingress --group-id "$sg" --protocol tcp --port 22 --cidr "$cidr" >/dev/null
+  done
+  echo "(SSH access moved to your current IP)"
+}
+
 case "${1:-status}" in
 
   start)
@@ -109,11 +130,13 @@ case "${1:-status}" in
 
   ssh)
     [ "$(state)" = "running" ] || { echo "Instance is not running. $0 start"; exit 1; }
+    allow_me
     exec ssh -o StrictHostKeyChecking=no -i "$KEY" "ec2-user@$(ip)"
     ;;
 
   logs)
     [ "$(state)" = "running" ] || { echo "Instance is not running. $0 start"; exit 1; }
+    allow_me
     ssh -o StrictHostKeyChecking=no -i "$KEY" "ec2-user@$(ip)" \
       'cd /opt/jobq && docker compose logs --tail=60 -f'
     ;;
