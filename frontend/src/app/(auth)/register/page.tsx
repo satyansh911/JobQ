@@ -87,7 +87,7 @@ const RegisterPage = () => {
       <div className="text-center shrink-0">
         <h1 className="t-h1 mb-2">Join JobQ</h1>
         <p className="t-body-sm">
-          Create your account to start a new journey
+          Find a job, or post one. It takes a minute.
         </p>
       </div>
 

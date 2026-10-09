@@ -64,7 +64,7 @@ const LoginPage = () => {
       <div className="text-center shrink-0">
 
         <h1 className="t-h1 mb-2">Welcome back to JobQ</h1>
-        <p className="t-body-sm">Sign in to continue your journey</p>
+        <p className="t-body-sm">Sign in to see your jobs and applications</p>
       </div>
 
       <div className="w-full max-w-md min-h-0 flex">

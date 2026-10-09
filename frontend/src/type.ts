@@ -86,6 +86,9 @@ export interface AppContextType {
   applyJob: (job_id: number) => Promise<void>;
   applications: Application[];
   fetchApplications: () => Promise<void>;
+  /** False once the status check finds the backend down. */
+  backendOnline: boolean;
+  recheckBackend: () => Promise<void>;
 }
 
 export interface AppProviderProps {

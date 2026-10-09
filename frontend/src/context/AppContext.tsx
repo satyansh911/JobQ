@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Cookies from "js-cookie";
 import axios from "axios";
+import { backendStatus, recheckBackend as recheckStatus } from "@/lib/backend-status";
 import { apiError } from "@/lib/utils";
 
 /**
@@ -37,6 +38,21 @@ export const payment_service = sameOrigin
   ? ""
   : process.env.NEXT_PUBLIC_PAYMENT_SERVICE ?? "http://localhost:5004";
 
+/**
+ * Relative (same-origin) API calls go through the deployment's proxy. Hold
+ * each one until the shared status check answers, and fail it straight away
+ * if the backend is down — otherwise it hangs for the proxy's ~30s timeout.
+ * Absolute URLs (local dev) are untouched.
+ */
+if (typeof window !== "undefined") {
+  axios.interceptors.request.use(async (config) => {
+    if ((config.url ?? "").startsWith("/api/") && !(await backendStatus())) {
+      throw new Error("JobQ backend is offline");
+    }
+    return config;
+  });
+}
+
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
@@ -44,6 +60,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   const [isAuth, setIsAuth] = useState(false);
   const [loading, setLoading] = useState(true);
   const [btnLoading, setBtnLoading] = useState(false);
+  const [backendOnline, setBackendOnline] = useState(true);
 
   const token = Cookies.get("token");
 
@@ -222,9 +239,18 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
   }
 
   useEffect(() => {
+    backendStatus().then(setBackendOnline);
     fetchUser();
     fetchApplications();
   }, []);
+
+  async function recheckBackend() {
+    const online = await recheckStatus();
+    setBackendOnline(online);
+    // Everything that failed while offline needs to load again.
+    if (online) window.location.reload();
+    else toast.error("Still offline. Please try again in a minute.");
+  }
 
   return (
     <AppContext.Provider
@@ -245,6 +271,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
         applyJob,
         applications,
         fetchApplications,
+        backendOnline,
+        recheckBackend,
       }}
     >
       {children}
