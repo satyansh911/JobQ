@@ -42,9 +42,17 @@ const nextConfig: NextConfig = {
     if (!BACKEND_HOST) return [];
 
     return [
-      ...Object.entries(SERVICE_PORTS).map(([name, port]) => ({
-        source: `/api/${name}/:path*`,
-        destination: `${BACKEND_HOST}:${port}/api/${name}/:path*`,
+      ...Object.entries(SERVICE_PORTS)
+        .filter(([name]) => name !== "utils")
+        .map(([name, port]) => ({
+          source: `/api/${name}/:path*`,
+          destination: `${BACKEND_HOST}:${port}/api/${name}/:path*`,
+        })),
+      // Only the two AI routes. /api/utils/upload is for the other services
+      // and is never called from a browser, so it is not exposed here.
+      ...["career", "resume-analyser"].map((route) => ({
+        source: `/api/utils/${route}`,
+        destination: `${BACKEND_HOST}:${SERVICE_PORTS.utils}/api/utils/${route}`,
       })),
       // Locally-stored uploads are served by the utils service.
       {

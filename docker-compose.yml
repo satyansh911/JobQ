@@ -160,8 +160,12 @@ services:
       start_period: 20s
     restart: unless-stopped
 
+  # In production the frontend is served from Vercel, so the EC2 box skips
+  # this container. Locally, COMPOSE_PROFILES=web (see .env.docker.example)
+  # brings it up with everything else.
   frontend:
     container_name: jobq-frontend
+    profiles: ["web"]
     build:
       context: ./frontend
       # These are compiled into the client bundle, so they are build args

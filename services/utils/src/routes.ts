@@ -1,9 +1,10 @@
 import express, { json } from "express";
 import { storeDataUri } from "./storage.js";
+import { requireInternal, requireUser } from "./guards.js";
 
 const router = express.Router();
 
-router.post("/upload", async (req, res) => {
+router.post("/upload", requireInternal, async (req, res) => {
   try {
     const { buffer, public_id } = req.body;
 
@@ -63,7 +64,7 @@ function aiError(res: any, error: any) {
 
 
 
-router.post("/career", async (req, res) => {
+router.post("/career", requireUser, async (req, res) => {
   try {
     const { skills } = req.body;
 
@@ -130,9 +131,9 @@ Mastery', 'DevOps & Cloud').",
 
       jsonResponse = JSON.parse(rawText);
     } catch (error) {
-      return res.status(500).json({
-        message: "Ai returned response that was not valid JSON",
-        rawResponse: response.text,
+      console.error("[ai] response was not valid JSON:", response.text?.slice(0, 300));
+      return res.status(502).json({
+        message: "The AI returned something we couldn't read. Please try again.",
       });
     }
 
@@ -142,7 +143,7 @@ Mastery', 'DevOps & Cloud').",
   }
 });
 
-router.post("/resume-analyser", async (req, res) => {
+router.post("/resume-analyser", requireUser, async (req, res) => {
   try {
     const { pdfBase64 } = req.body;
 
@@ -232,9 +233,9 @@ Focus on: - File format and structure compatibility - Proper use of standard sec
 
       jsonResponse = JSON.parse(rawText);
     } catch (error) {
-      return res.status(500).json({
-        message: "Ai returned response that was not valid JSON",
-        rawResponse: response.text,
+      console.error("[ai] response was not valid JSON:", response.text?.slice(0, 300));
+      return res.status(502).json({
+        message: "The AI returned something we couldn't read. Please try again.",
       });
     }
 

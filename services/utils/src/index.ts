@@ -23,7 +23,13 @@ app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 // Locally-stored uploads (fallback driver) are served from here.
-app.use("/uploads", express.static(UPLOAD_DIR));
+app.use(
+  "/uploads",
+  express.static(UPLOAD_DIR, {
+    // Never let a browser guess a different type than the extension says.
+    setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
+  })
+);
 
 app.use("/api/utils", routes);
 

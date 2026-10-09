@@ -5,6 +5,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import Cookies from "js-cookie";
 import axios from "axios";
+import { apiError } from "@/lib/utils";
 
 /**
  * Service endpoints. Configured via NEXT_PUBLIC_* env vars (see .env.local /
@@ -80,7 +81,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       toast.success(data.message);
       fetchUser();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     } finally {
       setLoading(false);
     }
@@ -102,7 +103,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       toast.success(data.message);
       fetchUser();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     } finally {
       setLoading(false);
     }
@@ -123,7 +124,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       toast.success(data.message);
       fetchUser();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     } finally {
       setBtnLoading(false);
     }
@@ -155,7 +156,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       setSkill("");
       fetchUser();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     } finally {
       setBtnLoading(false);
     }
@@ -175,7 +176,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       toast.success(data.message);
       fetchUser();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     }
   }
 
@@ -195,7 +196,7 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       toast.success(data.message);
       fetchApplications();
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
     } finally {
       setBtnLoading(false);
     }

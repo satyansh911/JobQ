@@ -1,6 +1,8 @@
 "use client";
 import { CareerGuideResponse } from "@/type";
 import axios from "axios";
+import Cookies from "js-cookie";
+import { apiError } from "@/lib/utils";
 import {
   ArrowRight,
   BookOpen,
@@ -61,14 +63,16 @@ const CareerGuide = () => {
     }
     setLoading(true);
     try {
-      const { data } = await axios.post(`${utils_service}/api/utils/career`, {
-        skills: skills,
-      });
+      const { data } = await axios.post(
+        `${utils_service}/api/utils/career`,
+        { skills },
+        { headers: { Authorization: `Bearer ${Cookies.get("token")}` } }
+      );
 
       setResponse(data);
       toast.success("Career guidance generated");
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error, "Could not generate guidance. Please try again."));
     } finally {
       setLoading(false);
     }

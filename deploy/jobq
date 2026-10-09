@@ -15,6 +15,10 @@ set -euo pipefail
 REGION="ap-south-1"
 NAME_TAG="jobq"
 KEY="$HOME/.ssh/jobq-key.pem"
+# The frontend runs on Vercel; this box only serves the APIs behind it.
+SITE_URL="https://jobq-one.vercel.app"
+# Port of a service whose /health proves the backend is answering.
+HEALTH_PORT=5003
 
 export AWS_DEFAULT_REGION="$REGION"
 
@@ -49,19 +53,19 @@ case "${1:-status}" in
   start)
     s="$(state)"
     if [ "$s" = "running" ]; then
-      echo "Already running — http://$(ip):3000"
+      echo "Already running — ${SITE_URL}"
       exit 0
     fi
     echo "Starting ${ID}…"
     aws ec2 start-instances --instance-ids "$ID" >/dev/null
     aws ec2 wait instance-running --instance-ids "$ID"
     IP="$(ip)"
-    echo "Instance up at ${IP}. Waiting for the containers…"
-    # The machine is reachable well before the app is; poll the real page.
+    echo "Instance up at ${IP}. Waiting for the services…"
+    # The machine is reachable well before the services are; poll a real one.
     for _ in $(seq 1 60); do
-      if curl -fsS -o /dev/null --max-time 5 "http://${IP}:3000" 2>/dev/null; then
+      if curl -fsS -o /dev/null --max-time 5 "http://${IP}:${HEALTH_PORT}/health" 2>/dev/null; then
         echo
-        echo "  Ready → http://${IP}:3000"
+        echo "  Ready → ${SITE_URL}"
         exit 0
       fi
       sleep 5
@@ -87,15 +91,17 @@ case "${1:-status}" in
     echo "  state    : ${s}"
     if [ "$s" = "running" ]; then
       IP="$(ip)"
-      echo "  url      : http://${IP}:3000"
-      printf "  app      : "
-      if curl -fsS -o /dev/null --max-time 6 "http://${IP}:3000" 2>/dev/null; then
+      echo "  site     : ${SITE_URL}"
+      echo "  backend  : ${IP}"
+      printf "  services : "
+      if curl -fsS -o /dev/null --max-time 6 "http://${IP}:${HEALTH_PORT}/health" 2>/dev/null; then
         echo "answering"
       else
         echo "not answering yet"
       fi
       echo "  cost     : ~\$9/mo while running"
     else
+      echo "  site     : ${SITE_URL} (loads, but shows 'offline' until started)"
       echo "  cost     : ~\$3.60/mo (idle Elastic IP)"
       echo "  start it : $0 start"
     fi

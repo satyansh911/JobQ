@@ -52,7 +52,8 @@ export const createCompany = TryCatch(
 
     const { data } = await axios.post(
       `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
-      { buffer: fileBuffer.content }
+      { buffer: fileBuffer.content },
+      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
     );
 
     const [newCompany] =
@@ -97,10 +98,7 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   if (user.role !== "recruiter") {
-    throw new ErrorHandler(
-      403,
-      "Forbidden: Only recruiter can create a company"
-    );
+    throw new ErrorHandler(403, "Only recruiters can post jobs");
   }
 
   const {
@@ -143,10 +141,7 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   if (user.role !== "recruiter") {
-    throw new ErrorHandler(
-      403,
-      "Forbidden: Only recruiter can create a company"
-    );
+    throw new ErrorHandler(403, "Only recruiters can edit jobs");
   }
 
   const {
@@ -170,7 +165,7 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
   }
 
   if (existingJob.posted_by_recruiter_id !== user.user_id) {
-    throw new ErrorHandler(403, "Forbiden: You are not allowed");
+    throw new ErrorHandler(403, "You can only edit jobs you posted");
   }
 
   // Partial update: COALESCE keeps the existing value for any field the
@@ -193,6 +188,38 @@ export const updateJob = TryCatch(async (req: AuthenticatedRequest, res) => {
     message: "Job updated successfully",
     job: updatedJob,
   });
+});
+
+/**
+ * The company page has always offered "Delete posting", but no route existed
+ * behind it, so the request 404'd and the posting stayed up. Applications
+ * reference jobs with ON DELETE CASCADE, so they go with it.
+ */
+export const deleteJob = TryCatch(async (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new ErrorHandler(401, "Authentication required");
+  }
+
+  if (user.role !== "recruiter") {
+    throw new ErrorHandler(403, "Only recruiters can delete jobs");
+  }
+
+  const [job] =
+    await sql`SELECT posted_by_recruiter_id FROM jobs WHERE job_id = ${req.params.jobId}`;
+
+  if (!job) {
+    throw new ErrorHandler(404, "Job not found");
+  }
+
+  if (job.posted_by_recruiter_id !== user.user_id) {
+    throw new ErrorHandler(403, "You can only delete jobs you posted");
+  }
+
+  await sql`DELETE FROM jobs WHERE job_id = ${req.params.jobId}`;
+
+  res.json({ message: "Job deleted" });
 });
 
 export const getAllCompany = TryCatch(

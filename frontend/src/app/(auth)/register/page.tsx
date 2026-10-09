@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import Loading from "@/components/loading";
+import { apiError } from "@/lib/utils";
 
 const RegisterPage = () => {
   const [name, setName] = useState("");
@@ -69,7 +70,7 @@ const RegisterPage = () => {
       setUser(data.registeredUser);
       setIsAuth(true);
     } catch (error: any) {
-      toast.error(error.response.data.message);
+      toast.error(apiError(error));
       setIsAuth(false);
     } finally {
       setBtnLoading(false);

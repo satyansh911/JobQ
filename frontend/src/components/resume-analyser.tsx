@@ -22,6 +22,8 @@ import {
   Zap,
 } from "lucide-react";
 import axios from "axios";
+import Cookies from "js-cookie";
+import { apiError } from "@/lib/utils";
 import { ResumeAnalysisResponse } from "@/type";
 import { utils_service, useAppData } from "@/context/AppContext";
 import { primaryPill } from "@/components/landing/primitives";
@@ -71,14 +73,13 @@ const ResumeAnalyzer = () => {
       const base64 = await convertToBase64(file);
       const { data } = await axios.post(
         `${utils_service}/api/utils/resume-analyser`,
-        {
-          pdfBase64: base64,
-        }
+        { pdfBase64: base64 },
+        { headers: { Authorization: `Bearer ${Cookies.get("token")}` } }
       );
       setResponse(data);
       toast.success("Resume analyzed successfully!");
     } catch (error: any) {
-      toast.error(error.response?.data?.message ||"Failed to analyze resume");
+      toast.error(apiError(error, "Could not analyse the résumé. Please try again."));
       console.log(error);
     } finally {
       setLoading(false);

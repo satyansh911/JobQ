@@ -15,9 +15,10 @@ const MIME_EXT: Record<string, string> = {
   "image/jpg": "jpg",
   "image/webp": "webp",
   "image/gif": "gif",
-  "image/svg+xml": "svg",
   "application/pdf": "pdf",
 };
+// No SVG: it can carry script, and these files are served from the app's own
+// origin, so an uploaded SVG opened directly would run with the user's session.
 
 export interface StoredFile {
   url: string;
@@ -79,7 +80,10 @@ function storeLocally(dataUri: string): StoredFile {
   }
 
   const [, mime, b64] = match;
-  const ext = MIME_EXT[mime] || "bin";
+  const ext = MIME_EXT[mime];
+  if (!ext) {
+    throw new Error(`Unsupported file type: ${mime}`);
+  }
   const id = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}`;
   const filename = `${id}.${ext}`;
 

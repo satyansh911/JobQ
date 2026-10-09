@@ -90,7 +90,8 @@ export const updateProfilePic = TryCatch(
       {
         buffer: fileBuffer.content,
         public_id: oldPublicId,
-      }
+      },
+      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
     );
 
     const [updatedUser] = await sql`
@@ -130,7 +131,8 @@ export const updateResume = TryCatch(async (req: AuthenticatedRequest, res) => {
     {
       buffer: fileBuffer.content,
       public_id: oldPublicId,
-    }
+    },
+      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
   );
 
   const [updatedUser] = await sql`

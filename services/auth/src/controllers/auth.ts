@@ -48,7 +48,8 @@ export const registerUser = TryCatch(async (req, res, next) => {
 
     const { data } = await axios.post(
       `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
-      { buffer: fileBuffer.content }
+      { buffer: fileBuffer.content },
+      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
     );
     const [user] =
       await sql`INSERT INTO users (name, email, password, phone_number, role, bio, resume, resume_public_id) VALUES 
