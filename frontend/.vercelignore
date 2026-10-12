@@ -1,0 +1,8 @@
+# Pushes to main deploy from Git, which only ever sees committed files. This
+# covers a manual `vercel` deploy from a working copy, which uploads whatever
+# is on disk.
+*.zip
+*.pdf
+.env*
+!.env.example
+tsconfig.tsbuildinfo
