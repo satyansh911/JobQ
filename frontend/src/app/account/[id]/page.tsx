@@ -8,10 +8,13 @@ import Cookies from "js-cookie";
 import Loading from "@/components/loading";
 import Info from "../components/info";
 import Skills from "../components/skills";
+import Link from "next/link";
+import { apiError } from "@/lib/utils";
 
 const UserAccount = () => {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const { id } = useParams();
 
@@ -25,8 +28,9 @@ const UserAccount = () => {
       });
 
       setUser(data);
-    } catch (error) {
-      console.log(error);
+      setError(null);
+    } catch (err) {
+      setError(apiError(err, "This profile couldn't be loaded."));
     } finally {
       setLoading(false);
     }
@@ -37,6 +41,19 @@ const UserAccount = () => {
   }, [id]);
 
   if (loading) return <Loading />;
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-[560px] px-4 py-20 text-center md:px-6">
+        <h1 className="t-h2">Can&apos;t show this profile</h1>
+        <p className="t-body mt-3">{error}</p>
+        <Link href="/jobs" className="btn-primary-sm mt-6 inline-flex">
+          Back to jobs
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <>
       {user && (

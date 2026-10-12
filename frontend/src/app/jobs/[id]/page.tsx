@@ -253,7 +253,12 @@ export default function JobPage() {
                       {filtered.map((a) => (
                         <tr key={a.application_id} className="border-b border-hairline last:border-0">
                           <td className="px-4 py-3">
-                            <p className="text-[15px] text-ink">{a.applicant_email}</p>
+                            <Link
+                              href={`/account/${a.applicant_id}`}
+                              className="text-[15px] text-ink hover:text-steel-700 hover:underline"
+                            >
+                              {a.applicant_email}
+                            </Link>
                             {a.subscribed && (
                               <span className="status-accent mt-1 inline-block px-1.5 py-0.5 text-[11px]">
                                 Priority

@@ -13,8 +13,40 @@ export const myProfile = TryCatch(
   }
 );
 
-export const getUserProfile = TryCatch(async (req, res, next) => {
+/**
+ * Another user's profile carries their email, phone and résumé, and user ids
+ * are sequential — so this cannot be open to any signed-in account, or anyone
+ * could walk the ids and collect everyone's contact details.
+ *
+ * Visible to the user themselves, and to a recruiter that user has applied to.
+ */
+export const getUserProfile = TryCatch(async (req: AuthenticatedRequest, res) => {
   const { userId } = req.params;
+  const viewer = req.user;
+
+  if (!viewer) {
+    throw new ErrorHandler(401, "Authentication required");
+  }
+
+  if (!/^\d+$/.test(String(userId))) {
+    throw new ErrorHandler(404, "User not found");
+  }
+
+  const isSelf = viewer.user_id === Number(userId);
+
+  if (!isSelf) {
+    const [applied] = viewer.role === "recruiter"
+      ? await sql`
+          SELECT 1 FROM applications a
+          JOIN jobs j ON j.job_id = a.job_id
+          WHERE a.applicant_id = ${userId}
+            AND j.posted_by_recruiter_id = ${viewer.user_id}
+          LIMIT 1`
+      : [];
+    if (!applied) {
+      throw new ErrorHandler(403, "You can only view candidates who applied to your jobs");
+    }
+  }
 
   const users = await sql`
         SELECT u.user_id, u.name, u.email, u.phone_number, u.role, u.bio, u.resume, u.resume_public_id, u.profile_pic, u.profile_pic_public_id, u.subscription,
@@ -32,6 +64,11 @@ export const getUserProfile = TryCatch(async (req, res, next) => {
   const user = users[0];
 
   user.skills = user.skills || [];
+
+  // Storage ids are internal, and subscription status is the user's own business.
+  delete user.resume_public_id;
+  delete user.profile_pic_public_id;
+  if (!isSelf) delete user.subscription;
 
   res.json(user);
 });

@@ -46,9 +46,9 @@ const selfUrl = () =>
 /**
  * Persist a base64 data-URI.
  *
- * Cloudinary is the primary driver. If it is unreachable or the account
- * rejects the upload (an unverified account returns 403 on every upload while
- * still answering `api.ping`), we fall back to local disk so the product keeps
+ * Cloudinary is the primary driver. If it is unreachable or rejects the
+ * upload — a restricted API key without upload permission returns 403 on every
+ * upload while still answering `api.ping` — we fall back to local disk so the product keeps
  * working instead of failing the whole request chain — company logos, résumés
  * and profile pictures all flow through here.
  */
