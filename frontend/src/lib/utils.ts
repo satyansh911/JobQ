@@ -42,3 +42,9 @@ export function apiError(error: unknown, fallback = "Something went wrong. Pleas
   const message = err.response.data?.message;
   return typeof message === "string" && message.trim() ? message : fallback;
 }
+
+/** A ?next= target, kept only if it's a path on this site. */
+export function safeNext(raw: string | null): string | null {
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.startsWith("/\\")) return null;
+  return raw;
+}

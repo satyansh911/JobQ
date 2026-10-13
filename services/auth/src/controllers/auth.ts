@@ -13,14 +13,18 @@ export const registerUser = TryCatch(async (req, res, next) => {
   const { name, email, password, phoneNumber, role, bio } = req.body;
 
   if (!name || !email || !password || !phoneNumber || !role) {
-    throw new ErrorHandler(400, "Please fill all details");
+    throw new ErrorHandler(400, "Please fill in every field.");
+  }
+
+  if (String(password).length < 8) {
+    throw new ErrorHandler(400, "Use at least 8 characters.");
   }
 
   const existingUsers =
     await sql`SELECT user_id FROM users WHERE email = ${email}`;
 
   if (existingUsers.length > 0) {
-    throw new ErrorHandler(409, "User with this email already exists");
+    throw new ErrorHandler(409, "There's already an account with this email.");
   }
 
   const hashPassword = await bcrypt.hash(password, 10);
@@ -34,28 +38,34 @@ export const registerUser = TryCatch(async (req, res, next) => {
 
     registeredUser = user;
   } else if (role === "jobseeker") {
+    // A résumé is optional at sign-up: seekers can add one later, and
+    // applying asks for it if it's still missing.
+    let resume: { url: string | null; public_id: string | null } = { url: null, public_id: null };
     const file = req.file;
 
-    if (!file) {
-      throw new ErrorHandler(400, "Resume file is required for jobseekers");
+    if (file) {
+      if (file.mimetype !== "application/pdf") {
+        throw new ErrorHandler(400, "Résumés need to be a PDF.");
+      }
+      const fileBuffer = getBuffer(file);
+      if (!fileBuffer || !fileBuffer.content) {
+        throw new ErrorHandler(500, "Failed to generate buffer");
+      }
+      const { data } = await axios.post(
+        `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
+        { buffer: fileBuffer.content },
+        { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
+      );
+      resume = { url: data.url, public_id: data.public_id };
     }
 
-    const fileBuffer = getBuffer(file);
-
-    if (!fileBuffer || !fileBuffer.content) {
-      throw new ErrorHandler(500, "Failed to generate buffer");
-    }
-
-    const { data } = await axios.post(
-      `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
-      { buffer: fileBuffer.content },
-      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
-    );
     const [user] =
       await sql`INSERT INTO users (name, email, password, phone_number, role, bio, resume, resume_public_id) VALUES 
-               (${name}, ${email}, ${hashPassword}, ${phoneNumber}, ${role}, ${bio}, ${data.url}, ${data.public_id}) RETURNING user_id, name, email, phone_number, role, bio, resume, created_at`;
+               (${name}, ${email}, ${hashPassword}, ${phoneNumber}, ${role}, ${bio || null}, ${resume.url}, ${resume.public_id}) RETURNING user_id, name, email, phone_number, role, bio, resume, created_at`;
 
     registeredUser = user;
+  } else {
+    throw new ErrorHandler(400, "Choose whether you're looking for work or hiring.");
   }
 
   const token = jwt.sign(
@@ -121,7 +131,7 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
   const { email } = req.body;
 
   if (!email) {
-    throw new ErrorHandler(400, "email is required");
+    throw new ErrorHandler(400, "Add the email you signed up with.");
   }
 
   const users =
@@ -167,17 +177,22 @@ export const forgotPassword = TryCatch(async (req, res, next) => {
 export const resetPassword = TryCatch(async (req, res, next) => {
   const { token } = req.params;
   const { password } = req.body;
+  const expired = "This reset link has expired or was already used.";
+
+  if (!password || String(password).length < 8) {
+    throw new ErrorHandler(400, "Use at least 8 characters.");
+  }
 
   let decoded: any;
 
   try {
     decoded = jwt.verify(token as string, process.env.JWT_SEC as string);
   } catch (error) {
-    throw new ErrorHandler(400, "Expired token");
+    throw new ErrorHandler(400, expired);
   }
 
   if (decoded.type !== "reset") {
-    throw new ErrorHandler(400, "Invalid token type");
+    throw new ErrorHandler(400, expired);
   }
 
   const email = decoded.email;
@@ -185,7 +200,7 @@ export const resetPassword = TryCatch(async (req, res, next) => {
   const stroredToken = await redisClient.get(`forgot:${email}`);
 
   if (!stroredToken || stroredToken !== token) {
-    throw new ErrorHandler(400, "token has been expired");
+    throw new ErrorHandler(400, expired);
   }
 
   const users = await sql`SELECT user_id FROM users WHERE email = ${email}`;

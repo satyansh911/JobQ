@@ -1,141 +1,111 @@
 "use client";
-import { auth_service, useAppData } from "@/context/AppContext";
-import axios from "axios";
-import { redirect } from "next/navigation";
-import React, { FormEvent, useState } from "react";
-import { toast } from "sonner";
-import Cookies from "js-cookie";
-import { Label } from "@/components/ui/label";
-import { ArrowRight, Lock, Mail } from "lucide-react";
+
+import React, { FormEvent, Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import axios from "axios";
+import Cookies from "js-cookie";
+import { auth_service, useAppData } from "@/context/AppContext";
+import { apiError, safeNext } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import Loading from "@/components/loading";
-import { apiError } from "@/lib/utils";
+import { Label } from "@/components/ui/label";
+import { AuthHeading, AuthShell, FormAlert, PasswordInput } from "@/components/auth/auth-shell";
 
-const LoginPage = () => {
-  const [email, setEmail] = useState("");
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <Login />
+    </Suspense>
+  );
+}
+
+function Login() {
+  const { isAuth, user, loading } = useAppData();
+  const router = useRouter();
+  const params = useSearchParams();
+  const next = safeNext(params.get("next"));
+
+  const [email, setEmail] = useState(params.get("email") ?? "");
   const [password, setPassword] = useState("");
-  const [btnLoading, setBtnLoading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<"credentials" | string | null>(null);
 
-  const { isAuth, setUser, loading, setIsAuth, fetchApplications } =
-    useAppData();
+  // Already signed in: go where they were heading.
+  useEffect(() => {
+    if (!loading && isAuth) router.replace(next ?? (user?.role === "recruiter" ? "/account" : "/jobs"));
+  }, [loading, isAuth, user?.role, next, router]);
 
-  if (loading) return <Loading />;
-
-  if (isAuth) return redirect("/");
-
-  const submitHandler = async (e: FormEvent<HTMLFormElement>) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
-
-    setBtnLoading(true);
+    setError(null);
+    setBusy(true);
     try {
-      const { data } = await axios.post(`${auth_service}/api/auth/login`, {
-        email,
-        password,
-      });
-
-      toast.success(data.message);
-
-      Cookies.set("token", data.token, {
-        expires: 15,
-        secure: false,
-        path: "/",
-      });
-      setUser(data.userObject);
-      setIsAuth(true);
-      fetchApplications();
-    } catch (error: any) {
-      console.log(error);
-      toast.error(apiError(error));
-      setIsAuth(false);
-    } finally {
-      setBtnLoading(false);
+      const { data } = await axios.post(`${auth_service}/api/auth/login`, { email: email.trim(), password });
+      Cookies.set("token", data.token, { expires: 15, path: "/", sameSite: "lax" });
+      // A full load, so every part of the app starts from the signed-in user.
+      window.location.assign(next ?? (data.userObject?.role === "recruiter" ? "/account" : "/jobs"));
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setError(status === 400 ? "credentials" : apiError(err));
+      setBusy(false);
     }
   };
 
   return (
-    <div className="h-[100dvh] overflow-hidden flex flex-col items-center justify-center gap-6 px-4 py-6">
-      <Link href="/" aria-label="JobQ home" className="shrink-0">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-black.png" alt="JobQ" className="h-10 w-auto" />
-      </Link>
+    <AuthShell line={<>Take a number.<br />We&apos;ll call you up.</>}>
+      <AuthHeading title="Sign in" sub="Pick up where you left off." />
 
-      <div className="text-center shrink-0">
+      {error && (
+        <FormAlert>
+          {error === "credentials" ? (
+            <>That email and password don&apos;t match. Try again, or <Link href="/forgot" className="font-bold">reset your password</Link>.</>
+          ) : (
+            error
+          )}
+        </FormAlert>
+      )}
 
-        <h1 className="t-h1 mb-2">Welcome back to JobQ</h1>
-        <p className="t-body-sm">Sign in to see your jobs and applications</p>
-      </div>
-
-      <div className="w-full max-w-md min-h-0 flex">
-        <div className="surface-card p-8 w-full overflow-y-auto">
-          <form onSubmit={submitHandler} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-sm font-medium">
-                Email Address
-              </Label>
-              <div className="relative">
-                <Mail className="icon-style" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="pl-10 h-11"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
-              <div className="relative">
-                <Lock className="icon-style" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="********"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="pl-10 h-11"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end">
-              <Link
-                href={"/forgot"}
-                className="text-sm text-steel-700 hover:underline transition-all"
-              >
-                Forgot Password?
-              </Link>
-            </div>
-
-            <Button disabled={btnLoading} className="w-full">
-              {btnLoading ? "Signing in..." : "Sign In"}
-              <ArrowRight size={18} />
-            </Button>
-          </form>
-
-          <div className="mt-6 pt-6 border-t border-hairline">
-            <p className="text-center text-sm">
-              Don't have an account?{" "}
-              <Link
-                href={"/register"}
-                className="text-steel-700 font-medium hover:underline transition-all"
-              >
-                Create a new account?
-              </Link>
-            </p>
-          </div>
+      <form onSubmit={submit} className="flex flex-col gap-[18px]" noValidate={false}>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={busy}
+            required
+          />
         </div>
-      </div>
-    </div>
-  );
-};
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-baseline justify-between">
+            <Label htmlFor="password">Password</Label>
+            <Link href="/forgot" className="inline-flex min-h-8 items-center text-[15px] font-bold">Forgot password?</Link>
+          </div>
+          <PasswordInput
+            id="password"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+            invalid={error === "credentials"}
+            disabled={busy}
+          />
+        </div>
+        <Button type="submit" size="lg" className="mt-1.5 w-full" loading={busy}>
+          {busy ? "Signing in" : "Sign in"}
+        </Button>
+        {busy && <p className="t-help">If the counter&apos;s asleep this can take a few seconds.</p>}
+      </form>
 
-export default LoginPage;
+      <p className="border-t-[1.5px] border-line pt-[18px]">
+        New to JobQ?{" "}
+        <Link href={next ? `/register?next=${encodeURIComponent(next)}` : "/register"} className="font-bold">
+          Create an account
+        </Link>
+      </p>
+    </AuthShell>
+  );
+}
