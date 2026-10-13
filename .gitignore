@@ -42,3 +42,5 @@ coverage/
 
 # Design handoff bundles (working artifacts, not source)
 *-handoff.zip
+
+# Written by `next dev` on every start

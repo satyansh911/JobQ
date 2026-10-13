@@ -27,6 +27,8 @@ import {
 
 type NavItem = { label: string; href: string; badge?: string };
 
+export const MARKETING_PATHS = ["/", "/about", "/subscribe"];
+
 function Logo({ className }: { className?: string }) {
   return (
     <Link href="/" aria-label="JobQ home" className={cn("flex shrink-0 items-center", className)}>
@@ -53,6 +55,8 @@ export const SiteHeader = () => {
   const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const role = user?.role;
+  // Marketing pages sit in the narrower 1240 container; app screens use 1360.
+  const marketing = MARKETING_PATHS.includes(pathname);
   const priorityUntil =
     user?.subscription && new Date(user.subscription).getTime() > Date.now()
       ? new Date(user.subscription)
@@ -96,7 +100,7 @@ export const SiteHeader = () => {
   return (
     <>
       <header className="sticky top-0 z-40 border-b-2 border-ink bg-paper">
-        <div className="container-app flex h-[60px] items-center gap-2 md:h-[72px] md:gap-6">
+        <div className={cn(marketing ? "container-marketing" : "container-app", "flex h-[60px] items-center gap-2 md:h-[72px] md:gap-6")}>
           <Logo />
 
           {/* --- desktop nav --- */}

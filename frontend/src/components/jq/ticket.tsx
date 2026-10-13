@@ -43,7 +43,7 @@ export function Ticket({
         )}
       >
         <span className={cn("text-[13px]", tone === "gold" ? "text-ink" : "text-ink-muted")}>{stubLabel}</span>
-        <span className={cn("t-token", compact && "!text-[18px]")}>{token}</span>
+        <span className={cn("t-token whitespace-nowrap", compact && "!text-[18px]")}>{token}</span>
       </div>
       <div className={cn("flex min-w-0 flex-1 items-center gap-3 py-4 pl-5", compact ? "pr-6" : "pr-[30px]")}>
         {children}

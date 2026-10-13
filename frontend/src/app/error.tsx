@@ -5,7 +5,7 @@ import { TriangleAlert } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export default function Error({ reset }: { error: Error & { digest?: string }; reset: () => void }) {
+export default function Error({ retry }: { error: Error & { digest?: string }; retry: () => void }) {
   return (
     <div className="container-marketing flex flex-col items-center gap-4 py-16 text-center md:py-24">
       <div className="my-6 grid size-[120px] place-items-center rounded-[10px] border-2 border-ink bg-error-tint shadow-hard-lg">
@@ -16,7 +16,7 @@ export default function Error({ reset }: { error: Error & { digest?: string }; r
         It&apos;s not you. Try again, and if it keeps happening, come back a little later.
       </p>
       <div className="flex w-full flex-col justify-center gap-3 sm:w-auto sm:flex-row">
-        <Button onClick={reset} className="w-full sm:w-auto">
+        <Button onClick={() => retry()} className="w-full sm:w-auto">
           Try again
         </Button>
         <Link href="/" className={cn(buttonVariants({ variant: "secondary" }), "w-full sm:w-auto")}>

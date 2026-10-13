@@ -1,11 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { MARKETING_PATHS } from "@/components/site-header";
+import { cn } from "@/lib/utils";
 import { useAppData } from "@/context/AppContext";
 
 /** One ink band for everyone. The last link follows who's signed in. */
 export function SiteFooter() {
   const { isAuth, user } = useAppData();
+  const marketing = MARKETING_PATHS.includes(usePathname());
   const last = !isAuth
     ? { label: "Sign in", href: "/login" }
     : user?.role === "recruiter"
@@ -14,7 +18,7 @@ export function SiteFooter() {
 
   return (
     <footer className="border-t-2 border-ink bg-ink text-[#E6DACB]">
-      <div className="container-marketing flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between">
+      <div className={cn(marketing ? "container-marketing" : "container-app", "flex flex-col gap-6 py-10 md:flex-row md:items-center md:justify-between")}>
         <Link href="/" aria-label="JobQ home" className="self-start md:self-auto">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.png" alt="JobQ" className="h-10 w-auto" />
