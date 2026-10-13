@@ -146,6 +146,9 @@ export interface Application {
   job_title: string;
   job_salary: number;
   job_location: string;
+  /** Joined on the seeker's own list. */
+  company_name?: string;
+  job_active?: boolean;
   /** Joined from the applicant's profile on the recruiter's view. */
   applicant_name?: string | null;
   applicant_pic?: string | null;
