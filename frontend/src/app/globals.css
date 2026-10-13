@@ -313,6 +313,20 @@
 .perforation { border-right: 2px dashed var(--color-ink); }
 .perforation-top { border-top: 2px dashed var(--color-ink); }
 
+/* Receipt · a card whose bottom edge is torn into a zigzag. */
+.receipt {
+  --tooth: 10px;
+  background: var(--color-card);
+  border: 2px solid var(--color-ink);
+  border-bottom: 0;
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth)) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(var(--tooth) * 2) var(--tooth) repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--tooth)) no-repeat,
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) bottom / calc(var(--tooth) * 2) var(--tooth) repeat-x;
+}
+
 /* Stamp · Hired and Rejected only. */
 .stamp {
   display: inline-block;

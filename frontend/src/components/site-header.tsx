@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { ChevronRight, ChevronsRight, LogOut, Menu, User as UserIcon, X } from "lucide-react";
+import { priorityUntil as activePriority } from "@/components/marketing/pricing-ctas";
 import { useAppData } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
 import { Avatar } from "@/components/jq/identity";
@@ -57,10 +58,7 @@ export const SiteHeader = () => {
   const role = user?.role;
   // Marketing pages sit in the narrower 1240 container; app screens use 1360.
   const marketing = MARKETING_PATHS.includes(pathname);
-  const priorityUntil =
-    user?.subscription && new Date(user.subscription).getTime() > Date.now()
-      ? new Date(user.subscription)
-      : null;
+  const priorityUntil = activePriority(user?.subscription);
   const inQueue = applications?.filter((a) => a.status === "Submitted").length ?? 0;
 
   const nav: NavItem[] = !isAuth
@@ -148,7 +146,7 @@ export const SiteHeader = () => {
                   </span>
                 ) : (
                   <Link
-                    href="/subscribe"
+                    href="/priority"
                     className={cn(buttonVariants({ variant: "gold", size: "sm" }), "shadow-hard-sm")}
                   >
                     <ChevronsRight strokeWidth={2.5} />
@@ -264,7 +262,7 @@ export const SiteHeader = () => {
                 <>
                   {role === "jobseeker" && !priorityUntil && (
                     <Link
-                      href="/subscribe"
+                      href="/priority"
                       onClick={() => setMenuOpen(false)}
                       className={cn(buttonVariants({ variant: "gold" }), "min-h-[54px] w-full")}
                     >

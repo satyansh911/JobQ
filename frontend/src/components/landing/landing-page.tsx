@@ -465,7 +465,7 @@ function Priority() {
             <span className="text-[18px] font-bold"> / month</span>
           </div>
           <Link
-            href="/subscribe"
+            href="/priority"
             className="press inline-flex min-h-[52px] items-center justify-center rounded-[10px] border-2 border-ink bg-ink px-6 font-bold text-gold no-underline shadow-[4px_4px_0_var(--color-card)] [--press-shadow:var(--color-card)] hover:text-gold"
           >
             Get Priority

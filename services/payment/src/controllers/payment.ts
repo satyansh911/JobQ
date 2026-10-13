@@ -23,7 +23,7 @@ export const checkOut = TryCatch(async (req: AuthenticatedRequest, res) => {
   const isSubscribed = subTime > now;
 
   if (isSubscribed) {
-    throw new ErrorHandler(400, "You already have a subscription");
+    throw new ErrorHandler(400, "You already have Priority.");
   }
 
   const options = {
@@ -61,6 +61,13 @@ export const paymentVerification = TryCatch(
     const isAuthentic = expectedSignature === razorpay_signature;
 
     if (isAuthentic) {
+      // A valid signature only proves Razorpay issued the payment; make sure
+      // the order was opened by this user, not replayed from someone else's.
+      const order = await instance.orders.fetch(razorpay_order_id);
+      if (String(order?.notes?.user_id) !== String(user?.user_id)) {
+        throw new ErrorHandler(400, "This payment belongs to another account.");
+      }
+
       const now = new Date();
 
       const thirtyDays = 30 * 24 * 60 * 60 * 1000;
@@ -68,15 +75,16 @@ export const paymentVerification = TryCatch(
       const expiryDate = new Date(now.getTime() + thirtyDays);
 
       const [updatedUser] =
-        await sql`UPDATE users SET subscription = ${expiryDate} WHERE user_id = ${user?.user_id} RETURNING *`;
+        await sql`UPDATE users SET subscription = ${expiryDate} WHERE user_id = ${user?.user_id} RETURNING user_id, subscription`;
 
+      // Only the new expiry: never send the full row, it holds the password hash.
       res.json({
-        message: "Subscription Purchased Successfully",
-        updatedUser,
+        message: "Priority is on.",
+        subscription: updatedUser.subscription,
       });
     } else {
       return res.status(400).json({
-        message: "Payment Failed",
+        message: "We couldn't confirm that payment. If you were charged, it will be refunded.",
       });
     }
   }

@@ -156,7 +156,7 @@ function JobDetail() {
                 <span className="size-3.5 flex-none rounded-full border-2 border-ink bg-gold" aria-hidden />
                 <span className="flex-1 text-[15px]">
                   Want {job.company_name} to see you first?{" "}
-                  <Link href="/subscribe" className="font-bold text-ink">Skip the line</Link>
+                  <Link href="/priority" className="font-bold text-ink">Skip the line</Link>
                 </span>
               </div>
             )}

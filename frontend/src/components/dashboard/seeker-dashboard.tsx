@@ -343,14 +343,14 @@ function PriorityCard({ user, openCount }: { user: User; openCount: number }) {
             : "Your applications go to the top of each recruiter's list, with a gold mark."}
         </p>
         <Link
-          href="/subscribe"
+          href="/priority"
           className="press inline-flex min-h-12 w-full items-center justify-center rounded-[10px] border-2 border-ink bg-ink px-5 font-bold text-gold no-underline shadow-[4px_4px_0_var(--color-card)] [--press-shadow:var(--color-card)] hover:text-gold"
         >
           Get Priority · ₹119/month
         </Link>
       </div>
       <Link
-        href="/subscribe"
+        href="/priority"
         className="flex items-center justify-between rounded-[10px] border-2 border-ink bg-gold px-3.5 py-3 font-bold text-ink no-underline shadow-hard-sm md:hidden"
       >
         Skip the line · ₹119/month

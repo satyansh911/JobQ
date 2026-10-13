@@ -54,16 +54,14 @@ const buttonVariants = cva(
   }
 );
 
-function Spinner() {
+function Spinner({ className, strokeWidth = 3 }: { className?: string; strokeWidth?: number }) {
   return (
     <svg
-      className="spin"
-      width="18"
-      height="18"
+      className={cn("spin size-[18px]", className)}
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="3"
+      strokeWidth={strokeWidth}
       strokeLinecap="round"
       aria-hidden="true"
     >

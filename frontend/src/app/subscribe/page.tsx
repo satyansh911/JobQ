@@ -1,134 +1,103 @@
-"use client";
-import useRazorpay from "@/components/scriptLoader";
-import { useRouter } from "next/navigation";
-import React, { useState } from "react";
-import Cookies from "js-cookie";
-import axios from "axios";
-import { payment_service, useAppData } from "@/context/AppContext";
-import { toast } from "sonner";
-import Loading from "@/components/loading";
-import { Check } from "lucide-react";
+import React from "react";
+import type { Metadata } from "next";
+import { Faq, Tick } from "@/components/marketing/faq";
+import { FreePlanCta, PostJobCta, PriorityPlanCta } from "@/components/marketing/pricing-ctas";
 
-const SubscriptionPage = () => {
-  const razorpayLoaded = useRazorpay();
+export const metadata: Metadata = { title: "Pricing · JobQ" };
 
-  const router = useRouter();
+const FAQ = [
+  { q: "How do I pay?", a: "Payments go through Razorpay, which opens in its own window. You'll get a receipt with your transaction ID once it's done." },
+  { q: "Does Priority help with jobs I already applied to?", a: "Yes. While Priority is active, all of your open applications show first on each recruiter's list." },
+  { q: "Does Priority guarantee an interview?", a: "No. It makes sure you're seen first. The recruiter still decides who to hire." },
+];
 
-  const [loading, setLoading] = useState(false);
-
-  const { setUser } = useAppData();
-
-  const handleSubscribe = async () => {
-    if (!razorpayLoaded || typeof window === "undefined" || !window.Razorpay) {
-      toast.error("Payment library is still loading — try again in a moment.");
-      return;
-    }
-
-    const token = Cookies.get("token");
-    setLoading(true);
-
-    try {
-      const {
-        data: { order, key },
-      } = await axios.post(
-        `${payment_service}/api/payment/checkout`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      const options = {
-        key,
-        amount: order.amount,
-        currency: order.currency,
-        name: "JobQ",
-        description: "Find your next job, faster",
-        order_id: order.id,
-        handler: async function (response: any) {
-          const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-            response;
-
-          try {
-            const { data } = await axios.post(
-              `${payment_service}/api/payment/verify`,
-              { razorpay_order_id, razorpay_payment_id, razorpay_signature },
-              { headers: { Authorization: `Bearer ${token}` } }
-            );
-
-            toast.success(data.message);
-            setUser(data.updatedUser);
-            router.push(`/payment/success/${razorpay_payment_id}`);
-          } catch (error: any) {
-            toast.error(
-              error?.response?.data?.message || "Could not verify payment"
-            );
-          } finally {
-            setLoading(false);
-          }
-        },
-        modal: {
-          // Without this the spinner would hang forever if the user closes
-          // the Razorpay widget instead of paying.
-          ondismiss: () => setLoading(false),
-        },
-        theme: { color: "#00d2ff" },
-      };
-
-      const razorpay = new window.Razorpay(options);
-      razorpay.open();
-    } catch (error: any) {
-      toast.error(
-        error?.response?.data?.message || "Could not start checkout"
-      );
-      setLoading(false);
-    }
-  };
-
-  if (loading) return <Loading />;
-
+function Plan({ gold = false, top, children }: { gold?: boolean; top: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-[560px] px-4 py-12 md:py-16">
-      <p className="t-overline">Priority placement</p>
-      <h1 className="t-h1 mt-3">Be at the top of the list</h1>
-      <p className="t-body mt-3">
-        Recruiters review applicants in one table. Priority puts yours at the
-        top of it, and marks you so they can see why.
-      </p>
+    <article className={`flex flex-col overflow-hidden rounded-[10px] border-[3px] border-ink shadow-hard-lg ${gold ? "bg-gold" : "bg-card"}`}>
+      <div className="relative flex flex-col gap-2.5 border-b-2 border-dashed border-ink px-6 pt-7 pb-6 md:px-9 md:pt-8 md:pb-7">
+        {top}
+        {/* the notches sit on the tear line, wherever it ends up */}
+        <span aria-hidden className="absolute -bottom-[15px] -left-[15px] size-7 rounded-full border-2 border-ink bg-paper" />
+        <span aria-hidden className="absolute -right-[15px] -bottom-[15px] size-7 rounded-full border-2 border-ink bg-paper" />
+      </div>
+      <div className="flex flex-1 flex-col gap-[22px] px-6 pt-6 pb-7 md:px-9 md:pt-7 md:pb-9">{children}</div>
+    </article>
+  );
+}
 
-      <div className="mt-8 border border-hairline bg-raised">
-        <div className="flex items-baseline gap-2 border-b border-hairline px-6 py-5">
-          <span className="numeric font-[family-name:var(--font-display)] text-[2.5rem] font-semibold leading-none text-ink">
-            ₹119
-          </span>
-          <span className="t-body-sm">per month</span>
-        </div>
-
-        <ul className="space-y-3 px-6 py-5">
-          {[
-            "Your application is surfaced first in every recruiter's list",
-            "A priority marker on your row, so it is clear why",
-            "Cancel any time — it simply stops renewing",
-          ].map((line) => (
-            <li key={line} className="flex gap-3">
-              <Check className="mt-0.5 size-4 shrink-0 text-ok" />
-              <span className="text-[15px] text-ink-2">{line}</span>
-            </li>
-          ))}
-        </ul>
-
-        <div className="border-t border-hairline px-6 py-5">
-          <button
-            onClick={handleSubscribe}
-            className="btn-primary-sm w-full justify-center"
-          >
-            Go priority
-          </button>
-          <p className="t-body-sm mt-3 text-center">
-            Payment is handled by Razorpay. Test mode — no real charge.
+export default function PricingPage() {
+  return (
+    <div className="text-[17px] leading-[1.55]">
+      <section className="container-marketing pt-12 pb-10 md:pt-[72px]">
+        <div className="flex max-w-[760px] flex-col gap-[18px]">
+          <h1 className="font-display text-[clamp(44px,6vw,76px)] leading-[0.96] font-extrabold tracking-[-0.035em] text-balance">
+            Free to apply. Priority if you want to go first.
+          </h1>
+          <p className="text-[18px] text-ink-soft md:text-[20px]">
+            Everything you need to find and apply for a job costs nothing. Priority puts your applications at the top of a
+            recruiter&apos;s list.
           </p>
         </div>
-      </div>
+      </section>
+
+      <section className="container-marketing grid items-stretch gap-8 pb-16 md:pb-[72px] lg:grid-cols-2 [&>*]:min-w-0">
+        <Plan
+          top={
+            <>
+              <h2 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">Free</h2>
+              <span className="font-display text-[56px] leading-none font-extrabold tracking-[-0.03em]">₹0</span>
+            </>
+          }
+        >
+          <ul className="flex flex-col gap-3">
+            <Tick>Browse and filter every open role</Tick>
+            <Tick>Apply in one tap with your saved profile and résumé</Tick>
+            <Tick>A ticket number and status for every application</Tick>
+            <Tick>Résumé checker and career guidance</Tick>
+            <Tick>An email when a recruiter decides</Tick>
+          </ul>
+          <div className="mt-auto pt-2"><FreePlanCta /></div>
+        </Plan>
+
+        <Plan
+          gold
+          top={
+            <>
+              <div className="flex items-center justify-between gap-3">
+                <h2 className="font-display text-[32px] leading-none font-extrabold tracking-[-0.03em]">Skip the line</h2>
+                <span className="rounded-[10px] bg-ink px-2.5 py-[3px] text-[14px] font-bold text-gold">Priority</span>
+              </div>
+              <div>
+                <span className="font-display text-[56px] leading-none font-extrabold tracking-[-0.03em]">₹119</span>
+                <span className="font-bold"> / month</span>
+              </div>
+            </>
+          }
+        >
+          <ul className="flex flex-col gap-3">
+            <Tick tone="ink">Everything in Free</Tick>
+            <Tick tone="ink"><b>Top of the list.</b> Your applications appear first on every recruiter&apos;s applicant table.</Tick>
+            <Tick tone="ink"><b>A gold mark</b> next to your name, so recruiters can spot you.</Tick>
+            <Tick tone="ink">Lasts one month from the day you pay</Tick>
+          </ul>
+          <div className="mt-auto pt-2"><PriorityPlanCta /></div>
+        </Plan>
+      </section>
+
+      <section className="bg-ink text-paper">
+        <div className="container-marketing flex flex-wrap items-center justify-between gap-6 py-12">
+          <div>
+            <h2 className="mb-2 font-display text-[32px] leading-none font-extrabold tracking-[-0.03em] text-paper md:text-[36px]">Hiring?</h2>
+            <p className="text-[#E6DACB]">Posting jobs and reviewing applicants is free. Up to three companies per account.</p>
+          </div>
+          <PostJobCta />
+        </div>
+      </section>
+
+      <section className="container-marketing flex flex-col gap-6 pt-16 pb-20 md:pt-20 md:pb-24">
+        <h2 className="font-display text-[36px] leading-none font-extrabold tracking-[-0.03em] md:text-[44px]">About paying</h2>
+        <Faq items={FAQ} />
+      </section>
     </div>
   );
-};
-
-export default SubscriptionPage;
+}
