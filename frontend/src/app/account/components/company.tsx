@@ -4,7 +4,7 @@ import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import axios from "axios";
 import Cookies from "js-cookie";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Building2, Trash2 } from "lucide-react";
 import { Company as CompanyType } from "@/type";
 import { job_service } from "@/context/AppContext";

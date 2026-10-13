@@ -29,7 +29,7 @@ import { Input } from "./ui/input";
 import { utils_service, useAppData } from "@/context/AppContext";
 import { primaryPill } from "@/components/landing/primitives";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 
 const CareerGuide = () => {
   const { isAuth } = useAppData();

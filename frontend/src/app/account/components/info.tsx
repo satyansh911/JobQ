@@ -2,7 +2,7 @@
 
 import React, { ChangeEvent, useRef, useState } from "react";
 import Link from "next/link";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { Camera, FileText, Pencil } from "lucide-react";
 import { AccontProps } from "@/type";
 import { useAppData } from "@/context/AppContext";

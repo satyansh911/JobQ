@@ -1,61 +1,117 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from "react";
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
+/**
+ * Raised variants carry a hard offset shadow and lift on hover, sink on
+ * press (`.press`). Every size is at least 44px tall. Disabled is one look
+ * for all variants, so it never reads as a colour choice.
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-none font-[family-name:var(--font-display)] font-semibold tracking-tight transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0",
+    "rounded-[10px] border-2 border-ink font-sans font-bold no-underline cursor-pointer",
+    "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-[18px]",
+    "disabled:cursor-not-allowed disabled:border-disabled-line disabled:bg-disabled disabled:text-disabled-ink disabled:shadow-none",
+    "aria-disabled:cursor-not-allowed aria-disabled:border-disabled-line aria-disabled:bg-disabled aria-disabled:text-disabled-ink aria-disabled:shadow-none",
+  ].join(" "),
   {
     variants: {
       variant: {
-        default:
-          "bg-primary text-primary-foreground border border-primary hover:bg-steel-800 active:bg-steel-900",
-        destructive:
-          "bg-destructive text-white hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
+        primary: "press bg-red text-white shadow-hard hover:text-white",
+        ink: "press bg-ink text-paper shadow-hard-red hover:text-paper [--press-shadow:var(--color-red)]",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-card text-ink transition-[background-color,transform] duration-[120ms] hover:bg-paper-deep active:translate-x-px active:translate-y-px",
+        /** Priority only. Never a general accent. */
+        gold: "press bg-gold text-ink shadow-hard hover:text-ink",
+        /** Destructive actions inside confirmation dialogs only. */
+        danger:
+          "bg-red-deep text-white transition-[background-color,transform] duration-[120ms] hover:bg-red-press hover:text-white active:translate-x-px active:translate-y-px",
         ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border-transparent bg-transparent px-2.5 text-ink underline underline-offset-[3px] hover:text-red-deep",
+
+        // Pre-redesign names, kept until their call sites are rebuilt.
+        default: "press bg-red text-white shadow-hard hover:text-white",
+        outline: "bg-card text-ink hover:bg-paper-deep",
+        destructive: "bg-red-deep text-white hover:bg-red-press",
+        link: "border-transparent bg-transparent text-red-deep underline",
       },
       size: {
-        default: "h-10 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 gap-1.5 px-3 has-[>svg]:px-2.5 text-[13px]",
-        lg: "h-11 px-6 has-[>svg]:px-4 text-[15px]",
-        icon: "size-9",
-        "icon-sm": "size-8",
-        "icon-lg": "size-10",
+        lg: "min-h-14 px-7 text-[18px]",
+        md: "min-h-12 px-[22px] text-[16px]",
+        sm: "min-h-11 px-4 text-[15px]",
+        icon: "size-11 p-0",
+        default: "min-h-12 px-[22px] text-[16px]",
       },
     },
+    compoundVariants: [{ variant: "ghost", className: "px-2.5" }],
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: "primary",
+      size: "md",
     },
   }
-)
+);
+
+function Spinner() {
+  return (
+    <svg
+      className="spin"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
+      <path d="M12 3a9 9 0 1 0 9 9" />
+    </svg>
+  );
+}
+
+type ButtonProps = React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+    /** Shows a spinner. Pass the verb as children: "Applying", "Saving". */
+    loading?: boolean;
+  };
 
 function Button({
   className,
   variant,
   size,
   asChild = false,
+  loading = false,
+  disabled,
+  children,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot : "button"
+}: ButtonProps) {
+  const Comp = asChild ? Slot : "button";
 
   return (
     <Comp
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
+      // Loading keeps the variant's colour (the design shows a red
+      // "Applying"), so it blocks clicks rather than using `disabled`.
+      className={cn(buttonVariants({ variant, size, className }), loading && "pointer-events-none")}
+      disabled={asChild ? undefined : disabled}
+      aria-busy={loading || undefined}
       {...props}
-    />
-  )
+      onClick={loading ? undefined : props.onClick}
+    >
+      {asChild ? (
+        children
+      ) : (
+        <>
+          {loading && <Spinner />}
+          {children}
+        </>
+      )}
+    </Comp>
+  );
 }
 
-export { Button, buttonVariants }
+export { Button, buttonVariants, Spinner };

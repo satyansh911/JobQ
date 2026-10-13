@@ -3,7 +3,7 @@ import { auth_service, useAppData } from "@/context/AppContext";
 import axios from "axios";
 import { redirect } from "next/navigation";
 import React, { FormEvent, useState } from "react";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import Cookies from "js-cookie";
 import { Label } from "@/components/ui/label";
 import { ArrowRight, Lock, Mail } from "lucide-react";

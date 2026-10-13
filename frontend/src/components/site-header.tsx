@@ -1,28 +1,67 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut, Menu, Sparkles, User as UserIcon, X } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { ChevronRight, ChevronsRight, LogOut, Menu, User as UserIcon, X } from "lucide-react";
 import { useAppData } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
+import { Avatar } from "@/components/jq/identity";
+import { buttonVariants } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+
+type NavItem = { label: string; href: string; badge?: string };
+
+function Logo({ className }: { className?: string }) {
+  return (
+    <Link href="/" aria-label="JobQ home" className={cn("flex shrink-0 items-center", className)}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/logo-black.png" alt="JobQ" className="h-9 w-auto md:h-10" />
+    </Link>
+  );
+}
+
+function isActive(pathname: string, href: string) {
+  if (href.includes("#")) return false;
+  return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
+}
 
 /**
- * Role-aware product header. A signed-out visitor sees the marketing nav;
- * each signed-in role sees only the destinations that exist for it.
+ * 72px header on a 2px ink rule. The current page gets a bordered tab, not
+ * just a colour change. Under 768px it collapses to the logo, the account
+ * (or Sign in), and a full-screen menu.
  */
 export const SiteHeader = () => {
-  const [menuOpen, setMenuOpen] = React.useState(false);
   const { isAuth, user, loading, logoutUser, applications } = useAppData();
   const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   const role = user?.role;
+  const priorityUntil =
+    user?.subscription && new Date(user.subscription).getTime() > Date.now()
+      ? new Date(user.subscription)
+      : null;
+  const inQueue = applications?.filter((a) => a.status === "Submitted").length ?? 0;
 
-  const nav: { label: string; href: string; count?: number }[] = !isAuth
+  const nav: NavItem[] = !isAuth
     ? [
-        { label: "Features", href: "/#features" },
+        { label: "Jobs", href: "/jobs" },
         { label: "Pricing", href: "/subscribe" },
         { label: "About", href: "/about" },
       ]
@@ -30,140 +69,241 @@ export const SiteHeader = () => {
       ? [
           { label: "My companies", href: "/account" },
           { label: "Jobs", href: "/jobs" },
-          { label: "About", href: "/about" },
         ]
       : [
           { label: "Jobs", href: "/jobs" },
-          { label: "My applications", href: "/account", count: applications?.length },
-          { label: "AI tools", href: "/#features" },
+          { label: "My applications", href: "/account", badge: inQueue ? `${inQueue} in queue` : undefined },
+          { label: "AI tools", href: "/account#ai-tools" },
         ];
 
-  const isSubscribed =
-    !!user?.subscription && new Date(user.subscription).getTime() > Date.now();
+  const avatar = (size: number) => (
+    <span className="relative inline-flex">
+      <Avatar
+        name={user?.name}
+        src={user?.profile_pic}
+        size={size}
+        className={role === "recruiter" ? "!bg-ink !text-paper" : undefined}
+      />
+      {priorityUntil && (
+        <span
+          aria-hidden
+          className="absolute -right-1 -bottom-1 size-[18px] rounded-full border-2 border-ink bg-gold"
+        />
+      )}
+    </span>
+  );
 
   return (
-    <header className="fixed inset-x-0 top-0 z-30 h-16 border-b border-hairline bg-raised">
-      <div className="mx-auto flex h-full max-w-[1200px] items-center gap-6 px-4 md:px-6">
-        <Link href="/" aria-label="JobQ home" className="flex shrink-0 items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-black.png" alt="JobQ" className="h-8 w-auto" />
-        </Link>
+    <>
+      <header className="sticky top-0 z-40 border-b-2 border-ink bg-paper">
+        <div className="container-app flex h-[60px] items-center gap-2 md:h-[72px] md:gap-6">
+          <Logo />
 
-        <nav className="hidden md:flex items-center gap-1">
-          {nav.map((item) => {
-            const active =
-              item.href === pathname ||
-              (item.href !== "/" && pathname.startsWith(item.href) && item.href !== "/account");
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "font-[family-name:var(--font-display)] font-semibold text-[15px] px-3 py-2 transition-colors",
-                  active
-                    ? "text-steel-700"
-                    : "text-ink-2 hover:text-ink"
-                )}
-              >
-                {item.label}
-                {item.count ? (
-                  <span className="numeric ml-1.5 inline-block bg-sunken px-1.5 text-[12px] text-ink-3">
-                    {item.count}
+          {/* --- desktop nav --- */}
+          <nav aria-label="Main" className="hidden flex-1 items-center gap-1 md:flex">
+            {nav.map((item) => {
+              const active = isActive(pathname, item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "rounded-[10px] border-2 px-3.5 py-2 font-bold text-ink no-underline transition-colors",
+                    active ? "border-ink bg-card" : "border-transparent hover:bg-paper-deep"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="ml-auto flex items-center gap-2 md:gap-3">
+            {!loading && !isAuth && (
+              <>
+                <Link
+                  href="/login"
+                  className="px-2 py-3 font-bold text-ink no-underline hover:text-red-deep md:px-3.5"
+                >
+                  Sign in
+                </Link>
+                <Link href="/register" className={cn(buttonVariants({ size: "md" }), "hidden md:inline-flex")}>
+                  Create account
+                </Link>
+              </>
+            )}
+
+            {!loading && isAuth && role === "jobseeker" && (
+              <div className="hidden md:block">
+                {priorityUntil ? (
+                  <span className="inline-flex items-center gap-2 rounded-[10px] border-2 border-dashed border-ink bg-gold-tint px-3 py-1.5 text-[15px] font-bold">
+                    <span className="size-3 rounded-full border-2 border-ink bg-gold" aria-hidden />
+                    Priority until{" "}
+                    {priorityUntil.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                   </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="ml-auto flex items-center gap-3">
-          {!loading && isAuth && role === "jobseeker" && !isSubscribed && (
-            <Link
-              href="/subscribe"
-              className="hidden sm:inline-flex items-center gap-1.5 border border-steel-200 bg-steel-100 px-3 py-1.5 text-[13px] font-medium text-steel-800 hover:bg-steel-200 transition-colors"
-            >
-              <Sparkles className="size-3.5" />
-              Go priority · <span className="numeric">₹119</span>/mo
-            </Link>
-          )}
-
-          {!loading &&
-            (isAuth ? (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    aria-label="Account menu"
-                    className="transition-opacity hover:opacity-80"
+                ) : (
+                  <Link
+                    href="/subscribe"
+                    className={cn(buttonVariants({ variant: "gold", size: "sm" }), "shadow-hard-sm")}
                   >
-                    <Avatar className="size-8 rounded-full">
-                      <AvatarImage src={(user?.profile_pic as string) || ""} alt="" />
-                      <AvatarFallback className="bg-steel-100 text-[13px] font-semibold text-steel-800">
-                        {user?.name?.charAt(0).toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent className="w-60 p-0" align="end">
-                  <div className="border-b border-hairline px-4 py-3">
-                    <p className="truncate text-[15px] font-medium text-ink">{user?.name}</p>
-                    <p className="truncate text-[13px] text-ink-3">{user?.email}</p>
+                    <ChevronsRight strokeWidth={2.5} />
+                    Skip the line
+                  </Link>
+                )}
+              </div>
+            )}
+
+            {!loading && isAuth && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  aria-label={`Account menu for ${user?.name ?? "you"}`}
+                  className="hidden rounded-full md:inline-flex"
+                >
+                  {avatar(46)}
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" sideOffset={10} className="w-[250px] p-1.5">
+                  <div className="px-3 py-2.5">
+                    <b className="block truncate">{user?.name}</b>
+                    <span className="t-help block truncate">{user?.email}</span>
                   </div>
-                  <div className="p-1">
-                    <Link
-                      href="/account"
-                      className="flex items-center gap-2 px-3 py-2 text-[15px] text-ink-2 hover:bg-sunken"
-                    >
-                      <UserIcon className="size-4" /> Profile
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/account" className="text-ink no-underline">
+                      <UserIcon strokeWidth={2.25} />
+                      Profile
                     </Link>
-                    <button
-                      onClick={logoutUser}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-[15px] text-ink-2 hover:bg-sunken"
-                    >
-                      <LogOut className="size-4" /> Log out
-                    </button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <Link
-                href="/login"
-                className="border border-primary bg-primary px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-white transition-colors hover:bg-steel-800"
-              >
-                Sign in
-              </Link>
-            ))}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => setConfirmSignOut(true)}>
+                    <LogOut strokeWidth={2.25} />
+                    Sign out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
-          <button
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-expanded={menuOpen}
-            className="md:hidden p-1.5 text-ink-2"
-          >
-            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-          </button>
-        </div>
-      </div>
-
-      {menuOpen && (
-        <div className="md:hidden border-b border-hairline bg-raised px-4 pb-4">
-          {nav.map((item) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              onClick={() => setMenuOpen(false)}
-              className="block border-b border-hairline py-3 font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-2 last:border-0"
+            {/* --- mobile: account + menu button --- */}
+            {!loading && isAuth && <span className="md:hidden">{avatar(40)}</span>}
+            <button
+              onClick={() => setMenuOpen(true)}
+              aria-label="Open menu"
+              className="grid size-11 place-items-center rounded-[10px] border-2 border-ink bg-card md:hidden"
             >
-              {item.label}
-              {item.count ? (
-                <span className="numeric ml-1.5 bg-sunken px-1.5 text-[12px]">
-                  {item.count}
-                </span>
-              ) : null}
-            </Link>
-          ))}
+              <Menu className="size-5" strokeWidth={2.5} />
+            </button>
+          </div>
         </div>
-      )}
-    </header>
+      </header>
+
+      {/* --- mobile full-screen menu --- */}
+      <DialogPrimitive.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <DialogPrimitive.Portal>
+          <DialogPrimitive.Content className="fixed inset-0 z-50 flex flex-col bg-paper data-[state=open]:animate-in data-[state=open]:fade-in-0 md:hidden">
+            <DialogPrimitive.Title className="sr-only">Menu</DialogPrimitive.Title>
+            <DialogPrimitive.Description className="sr-only">Site navigation</DialogPrimitive.Description>
+            <div className="flex h-[60px] flex-none items-center gap-2 border-b-2 border-ink px-4">
+              <span className="flex-1" onClick={() => setMenuOpen(false)}>
+                <Logo />
+              </span>
+              <DialogPrimitive.Close
+                aria-label="Close menu"
+                className="grid size-11 place-items-center rounded-[10px] border-2 border-ink bg-card"
+              >
+                <X className="size-5" strokeWidth={2.75} />
+              </DialogPrimitive.Close>
+            </div>
+
+            {isAuth && (
+              <div className="flex items-center gap-3 border-b-2 border-ink px-5 py-4">
+                {avatar(44)}
+                <div className="min-w-0">
+                  <b className="block truncate">{user?.name}</b>
+                  <span className="t-help block truncate">{user?.email}</span>
+                </div>
+              </div>
+            )}
+
+            <nav aria-label="Main" className="flex flex-col overflow-y-auto px-5 py-2">
+              {[...nav, ...(isAuth ? [{ label: "Profile", href: "/account" }] : [])]
+                .filter((item, i, all) => all.findIndex((x) => x.label === item.label) === i)
+                .map((item) => (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setMenuOpen(false)}
+                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                    className="flex min-h-[60px] items-center justify-between gap-3 border-b-[1.5px] border-line px-1 font-display text-[26px] font-extrabold tracking-[-0.02em] text-ink no-underline"
+                  >
+                    {item.label}
+                    {item.badge ? (
+                      <span className="rounded-[10px] border-[1.5px] border-queue bg-queue-tint px-2 font-sans text-[14px] font-bold tracking-normal text-queue">
+                        {item.badge}
+                      </span>
+                    ) : (
+                      !isAuth && <ChevronRight className="size-[22px]" strokeWidth={2.5} aria-hidden />
+                    )}
+                  </Link>
+                ))}
+            </nav>
+
+            <div className="mt-auto flex flex-col gap-3 border-t-2 border-ink bg-paper-deep p-5">
+              {!isAuth ? (
+                <>
+                  <Link href="/register" onClick={() => setMenuOpen(false)} className={cn(buttonVariants(), "min-h-[54px] w-full")}>
+                    Create account
+                  </Link>
+                  <Link href="/login" onClick={() => setMenuOpen(false)} className={cn(buttonVariants({ variant: "secondary" }), "w-full")}>
+                    Sign in
+                  </Link>
+                </>
+              ) : (
+                <>
+                  {role === "jobseeker" && !priorityUntil && (
+                    <Link
+                      href="/subscribe"
+                      onClick={() => setMenuOpen(false)}
+                      className={cn(buttonVariants({ variant: "gold" }), "min-h-[54px] w-full")}
+                    >
+                      Skip the line · ₹119/month
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmSignOut(true);
+                    }}
+                    className={cn(buttonVariants({ variant: "secondary" }), "w-full")}
+                  >
+                    Sign out
+                  </button>
+                </>
+              )}
+            </div>
+          </DialogPrimitive.Content>
+        </DialogPrimitive.Portal>
+      </DialogPrimitive.Root>
+
+      {/* --- sign-out confirmation --- */}
+      <AlertDialog open={confirmSignOut} onOpenChange={setConfirmSignOut}>
+        <AlertDialogContent>
+          <AlertDialogTitle className="!text-[28px]">Sign out of JobQ?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Your profile and tickets stay as they are. You&apos;ll need your email and password to sign back in.
+          </AlertDialogDescription>
+          <AlertDialogFooter>
+            <AlertDialogCancel className={buttonVariants({ variant: "secondary" })}>Stay signed in</AlertDialogCancel>
+            <button
+              className={buttonVariants({ variant: "ink" })}
+              onClick={async () => {
+                setConfirmSignOut(false);
+                await logoutUser();
+              }}
+            >
+              Sign out
+            </button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };

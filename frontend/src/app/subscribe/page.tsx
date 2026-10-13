@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { payment_service, useAppData } from "@/context/AppContext";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import Loading from "@/components/loading";
 import { Check } from "lucide-react";
 

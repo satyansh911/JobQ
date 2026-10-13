@@ -3,66 +3,62 @@
 import React from "react";
 import { usePathname } from "next/navigation";
 import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
+import { Toaster } from "@/components/jq/feedback";
 import { useAppData } from "@/context/AppContext";
+import { Button } from "@/components/ui/button";
 
 /**
- * Site-wide shell.
- *
- * One light theme on a single neutral ground — no background video, no
- * theme class. The landing page brings its own header; auth screens show
- * no nav at all so the form owns the viewport.
+ * Site-wide shell: header, footer and toasts on every page. Auth screens
+ * own the whole viewport, so they skip the header and footer.
  */
 export function SiteChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { backendOnline, recheckBackend } = useAppData();
   const [rechecking, setRechecking] = React.useState(false);
-  const isLanding = pathname === "/";
   const isAuthPage =
-    ["/login", "/register", "/forgot"].includes(pathname) ||
-    pathname.startsWith("/reset");
+    ["/login", "/register", "/forgot"].includes(pathname) || pathname.startsWith("/reset");
 
   return (
-    <div className="relative min-h-screen bg-ground text-ink">
-      {/* First tab stop on every page. */}
+    <div className="flex min-h-screen flex-col bg-paper text-ink">
       <a
         href="#main"
-        className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:left-4 focus-visible:top-4 focus-visible:z-50 focus-visible:bg-raised focus-visible:px-4 focus-visible:py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-steel"
+        className="sr-only focus-visible:not-sr-only focus-visible:absolute focus-visible:top-4 focus-visible:left-4 focus-visible:z-50 focus-visible:rounded-[10px] focus-visible:border-2 focus-visible:border-ink focus-visible:bg-card focus-visible:px-4 focus-visible:py-2"
       >
         Skip to content
       </a>
 
+      {!isAuthPage && <SiteHeader />}
+      <main id="main" className="flex-1">
+        {children}
+      </main>
+      {!isAuthPage && <SiteFooter />}
+
       {!backendOnline && (
-        // Bottom-fixed so it never fights the fixed header or the full-height
-        // auth layouts.
+        // Pinned above the toasts so the two never overlap.
         <div
           role="status"
-          className="status-warn fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-[560px] -translate-x-1/2 flex-wrap items-center justify-between gap-3 border px-4 py-3 text-[14px] shadow-lg"
+          className="fixed bottom-4 left-1/2 z-[60] flex w-[calc(100%-2rem)] max-w-[560px] -translate-x-1/2 flex-wrap items-center gap-3 rounded-[10px] border-2 border-dashed border-ink bg-paper-deep px-4 py-3 text-[15px] shadow-hard"
         >
-          <span>JobQ is offline right now, so jobs and sign-in won&apos;t load.</span>
-          <button
+          <span className="min-w-[12rem] flex-1">
+            <b>The counter&apos;s closed for a moment.</b> Jobs and sign-in will be back soon.
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={rechecking}
             onClick={async () => {
               setRechecking(true);
               await recheckBackend();
               setRechecking(false);
             }}
-            disabled={rechecking}
-            className="shrink-0 font-semibold underline underline-offset-2 disabled:opacity-50"
           >
-            {rechecking ? "Checking…" : "Try again"}
-          </button>
+            {rechecking ? "Checking" : "Try again"}
+          </Button>
         </div>
       )}
 
-      {isLanding || isAuthPage ? (
-        <main id="main">{children}</main>
-      ) : (
-        <>
-          <SiteHeader />
-          <main id="main" className="pt-16">
-            {children}
-          </main>
-        </>
-      )}
+      <Toaster />
     </div>
   );
 }

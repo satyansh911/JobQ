@@ -2,7 +2,7 @@
 
 import { AppContextType, Application, AppProviderProps, User } from "@/type";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import toast, { Toaster } from "react-hot-toast";
+import { toast } from "sonner";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { backendStatus, recheckBackend as recheckStatus } from "@/lib/backend-status";
@@ -276,24 +276,6 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
       }}
     >
       {children}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          style: {
-            background: "rgba(16, 16, 20, 0.92)",
-            backdropFilter: "blur(24px) saturate(140%)",
-            WebkitBackdropFilter: "blur(24px) saturate(140%)",
-            border: "1px solid rgba(255, 255, 255, 0.12)",
-            color: "#ffffff",
-            borderRadius: "9999px",
-            padding: "10px 18px",
-            fontSize: "14px",
-            boxShadow: "0 16px 40px rgba(0, 0, 0, 0.5)",
-          },
-          success: { iconTheme: { primary: "#00d2ff", secondary: "#0c0c0c" } },
-          error: { iconTheme: { primary: "#f0806f", secondary: "#0c0c0c" } },
-        }}
-      />
     </AppContext.Provider>
   );
 };

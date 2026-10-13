@@ -1,150 +1,136 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500&family=Barlow+Condensed:wght@600&display=swap');
 @import "tailwindcss";
 @import "tw-animate-css";
 
 /* ===================================================================
-   JobQ — light-only design foundations.
-
-   One theme. A considered neutral ground, hairline structure, steel as
-   the only chromatic voice, and status colour held strictly separate
-   from it. Corners are square; depth comes from three surfaces and a
-   hairline rather than stacked shadows.
+   JobQ · Counter Token
+   Light only. Warm paper, ink structure, the logo's red for action, queue
+   blue for focus and "In the queue", gold reserved for Priority. Every
+   text pairing below is measured AA or better against its ground.
    =================================================================== */
 
 @theme {
-  /* --- surfaces ------------------------------------------------- */
-  --color-ground: #f2f2f3;
-  --color-raised: #f5f5f8;
-  --color-sunken: #e9e9ea;
-  --color-reverse: #1d2d3d;
+  /* --- brand ---------------------------------------------------- */
+  --color-red: #c03c48;          /* primary action. white on it 5.27:1 */
+  --color-red-deep: #a82430;     /* links, errors, danger. 6.98:1 on card */
+  --color-red-press: #8e1c27;    /* danger hover */
+  --color-gold: #f4b63f;         /* Priority and celebration only */
+  --color-gold-tint: #fdf1d6;    /* Priority rows */
 
-  /* --- ink (all measured against the ground) -------------------- */
-  --color-ink: #1d1f20;    /* 14.8:1 — headings, values, decisions   */
-  --color-ink-2: #424244;  /*  8.2:1 — body copy                     */
-  --color-ink-3: #5d5d60;  /*  5.8:1 — labels, metadata              */
-  --color-ink-4: #6b6b6e;  /*  4.7:1 — placeholders only. The floor. */
-  /* aliases so `bg-ground`, `text-ink`, `text-ink-3` … work as utilities */
+  /* --- ink -------------------------------------------------------- */
+  --color-ink: #1d1517;          /* text, borders, shadow. 16.5:1 */
+  --color-ink-soft: #3a3033;     /* long body copy. 11.7:1 */
+  --color-ink-muted: #5e5254;    /* meta, hints. 7.35:1 on card */
 
-  /* --- structure ------------------------------------------------ */
-  --color-hairline: color-mix(in srgb, #1d1f20 16%, transparent);
-  --color-line-strong: #d4d4d7;
+  /* --- ground ------------------------------------------------------ */
+  --color-paper: #fbf5ea;        /* page */
+  --color-paper-deep: #f3eada;   /* bands, search bar */
+  --color-card: #fffdf8;         /* cards, inputs */
+  --color-line: #e2d6c4;         /* hairlines only */
 
-  /* --- steel accent --------------------------------------------- */
-  --color-steel-100: #eef6ff;
-  --color-steel-200: #d6e6f5;
-  --color-steel-300: #b3cee4;
-  --color-steel-400: #86aecb;
-  --color-steel: #5980a6;      /* base — 3.7:1. Never carries text. */
-  --color-steel-700: #416180;  /* 5.7:1 — links, and every text fill */
-  --color-steel-800: #2c455d;
-  --color-steel-900: #1d2d3d;
+  --color-disabled: #ede6da;
+  --color-disabled-ink: #7a6e70;
+  --color-disabled-line: #b9aea4;
 
-  /* --- status: separate from the accent, never decorative ------- */
-  --color-ok: #3f8f6b;
-  --color-ok-text: #2a6349;
-  --color-ok-tint: #e8f2ec;
-  --color-warn: #b5822c;
-  --color-warn-text: #7d5713;
-  --color-warn-tint: #f7efdd;
-  --color-bad: #c05a4e;
-  --color-bad-text: #8f3b31;
-  --color-bad-tint: #f8eae7;
+  /* --- status: never red, never hue alone ------------------------ */
+  --color-queue: #1f4e9e;        /* Submitted · also the focus ring */
+  --color-queue-tint: #e3ecfa;
+  --color-hired: #17663f;
+  --color-hired-tint: #ddf1e4;
+  --color-rejected: #4a4540;
+  --color-rejected-tint: #ece6de;
+  --color-error-tint: #fbedee;
+  --color-error-ring: #f6d5d8;
 
   /* --- type ------------------------------------------------------ */
-  --font-display: 'Barlow Condensed', system-ui, sans-serif;
-  --font-sans: 'Barlow', system-ui, sans-serif;
+  --font-display: var(--font-bricolage), "Bricolage Grotesque", system-ui, sans-serif;
+  --font-sans: var(--font-atkinson), "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
 
-  --text-display: 3.5rem;
-  --text-display--line-height: 1;
-  --text-display--letter-spacing: -0.024em;
-  --text-h1: 2.125rem;
-  --text-h1--line-height: 1.08;
-  --text-h1--letter-spacing: -0.02em;
-  --text-h2: 1.625rem;
-  --text-h2--line-height: 1.12;
-  --text-h2--letter-spacing: -0.018em;
-  --text-h3: 1.25rem;
-  --text-h3--line-height: 1.2;
-  --text-h3--letter-spacing: -0.012em;
-  --text-overline: 0.6875rem;
-  --text-overline--line-height: 1.2;
-  --text-overline--letter-spacing: 0.09em;
-  --text-body-lg: 1.0625rem;
-  --text-body-lg--line-height: 1.62;
-  --text-base: 0.9375rem;
-  --text-base--line-height: 1.58;
-  --text-body-sm: 0.8125rem;
-  --text-body-sm--line-height: 1.5;
-  --text-label: 0.8125rem;
-  --text-label--line-height: 1.35;
-  --text-label--letter-spacing: 0.005em;
+  /* --- shape: one radius, hard offset shadows --------------------- */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 10px;
+  --shadow-hard-sm: 3px 3px 0 var(--color-ink);
+  --shadow-hard: 4px 4px 0 var(--color-ink);
+  --shadow-hard-lg: 6px 6px 0 var(--color-ink);
+  --shadow-hard-xl: 8px 8px 0 var(--color-ink);
+  --shadow-hard-red: 4px 4px 0 var(--color-red);
+  --shadow-hard-error: 4px 4px 0 var(--color-red-deep);
 
-  /* --- edge + elevation ------------------------------------------ */
-  --radius: 0px;
-  --shadow-sm: 0 1px 2px oklch(0.28 0.003 264 / 0.14);
-  --shadow-md: 0 3px 10px oklch(0.28 0.003 264 / 0.16);
-  --shadow-lg: 0 12px 32px oklch(0.28 0.003 264 / 0.22);
+  /* --- motion ---------------------------------------------------- */
+  --ease-out-jq: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-stamp: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  --ease-ui: cubic-bezier(0.2, 0, 0, 1);
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  /* ===============================================================
+     LEGACY ALIASES — the pre-redesign names, pointed at the new
+     palette so screens not yet rebuilt still render in-system.
+     Delete this block once `grep` finds none of them in src/.
+     =============================================================== */
+  --color-ground: #fbf5ea;
+  --color-raised: #fffdf8;
+  --color-sunken: #f3eada;
+  --color-reverse: #1d1517;
+  --color-ink-2: #3a3033;
+  --color-ink-3: #5e5254;
+  --color-ink-4: #5e5254;
+  --color-hairline: #e2d6c4;
+  --color-line-strong: #1d1517;
+  --color-steel-100: #f3eada;
+  --color-steel-200: #e2d6c4;
+  --color-steel-300: #e2d6c4;
+  --color-steel-400: #c03c48;
+  --color-steel: #c03c48;
+  --color-steel-700: #a82430;
+  --color-steel-800: #8e1c27;
+  --color-steel-900: #1d1517;
+  --color-ok: #17663f;
+  --color-ok-text: #17663f;
+  --color-ok-tint: #ddf1e4;
+  --color-warn: #f4b63f;
+  --color-warn-text: #1d1517;
+  --color-warn-tint: #fdf1d6;
+  --color-bad: #a82430;
+  --color-bad-text: #a82430;
+  --color-bad-tint: #fbedee;
 }
 
 /* ---------------------------------------------------------------
-   shadcn semantic tokens, mapped onto the foundations above so the
-   existing primitives inherit the system without per-component edits.
+   shadcn semantic tokens, mapped onto the palette so every Radix
+   primitive inherits the system.
    --------------------------------------------------------------- */
 :root {
-  --radius: 0px;
+  --radius: 10px;
 
-  --background: #f2f2f3;
-  --foreground: #1d1f20;
-  --card: #f5f5f8;
-  --card-foreground: #1d1f20;
-  --popover: #f5f5f8;
-  --popover-foreground: #1d1f20;
+  --background: #fbf5ea;
+  --foreground: #1d1517;
+  --card: #fffdf8;
+  --card-foreground: #1d1517;
+  --popover: #fffdf8;
+  --popover-foreground: #1d1517;
 
-  /* Fills that carry text use accent-700: white on the base steel is
-     only 4.2:1 and fails AA. */
-  --primary: #416180;
+  --primary: #c03c48;
   --primary-foreground: #ffffff;
-
-  --secondary: #e9e9ea;
-  --secondary-foreground: #1d1f20;
-  --muted: #e9e9ea;
-  --muted-foreground: #5d5d60;
-  --accent: #eef6ff;
-  --accent-foreground: #2c455d;
-
-  --destructive: #8f3b31;
+  --secondary: #f3eada;
+  --secondary-foreground: #1d1517;
+  --muted: #f3eada;
+  --muted-foreground: #5e5254;
+  --accent: #f3eada;
+  --accent-foreground: #1d1517;
+  --destructive: #a82430;
   --destructive-foreground: #ffffff;
 
-  --border: color-mix(in srgb, #1d1f20 16%, transparent);
-  --input: #d4d4d7;
-  --ring: #5980a6;
-
-  --chart-1: #5980a6;
-  --chart-2: #3f8f6b;
-  --chart-3: #b5822c;
-  --chart-4: #c05a4e;
-  --chart-5: #2c455d;
-
-  --sidebar: #f5f5f8;
-  --sidebar-foreground: #1d1f20;
-  --sidebar-primary: #416180;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #eef6ff;
-  --sidebar-accent-foreground: #2c455d;
-  --sidebar-border: color-mix(in srgb, #1d1f20 16%, transparent);
-  --sidebar-ring: #5980a6;
+  --border: #1d1517;
+  --input: #1d1517;
+  --ring: #1f4e9e;
 }
 
 @theme inline {
-  --radius-sm: 0px;
-  --radius-md: 0px;
-  --radius-lg: 0px;
-  --radius-xl: 0px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
@@ -160,21 +146,9 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-
   html,
   body {
     font-family: var(--font-sans);
@@ -182,199 +156,230 @@
   }
 
   body {
-    background: var(--color-ground);
+    background: var(--color-paper);
     color: var(--color-ink);
+    font-size: 15px;
+    line-height: 1.5;
   }
 
-  /* Condensed carries every heading. Never a paragraph. */
   h1,
   h2,
   h3,
   h4 {
     font-family: var(--font-display);
-    font-weight: 600;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    line-height: 1.05;
     color: var(--color-ink);
   }
 
   a {
-    color: var(--color-steel-700);
-  }
-  a:hover {
-    color: var(--color-steel);
+    color: var(--color-red-deep);
+    text-underline-offset: 3px;
   }
 
-  /* Every figure that can be compared column-to-column. */
+  /* One focus ring everywhere: 3px queue blue, offset clear of borders. */
+  :focus-visible {
+    outline: 3px solid var(--color-queue);
+    outline-offset: 3px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--color-red);
+    width: 18px;
+    height: 18px;
+  }
+
   [data-numeric],
   .numeric {
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0;
   }
 
   ::selection {
-    background: var(--color-steel-200);
-    color: var(--color-steel-900);
+    background: var(--color-gold);
+    color: var(--color-ink);
   }
 }
 
 /* ---------------------------------------------------------------
-   Typography roles
+   Type roles · desktop size, then the 390 size under md
    --------------------------------------------------------------- */
-.t-display {
+.t-display-xl,
+.t-display,
+.t-h1,
+.t-h2,
+.t-h3,
+.t-token {
   font-family: var(--font-display);
-  font-weight: 600;
-  font-size: clamp(2.125rem, 6vw, var(--text-display));
+  font-weight: 800;
+  letter-spacing: -0.03em;
   line-height: 1;
-  letter-spacing: -0.024em;
+  color: var(--color-ink);
 }
-.t-h1 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-h1);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
+.t-display-xl { font-size: 50px; }
+.t-display { font-size: 40px; }
+.t-h1 { font-size: 34px; }
+.t-h2 { font-size: 26px; }
+.t-h3 { font-size: 21px; line-height: 1.1; }
+.t-token { font-size: 22px; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+@media (min-width: 768px) {
+  .t-display-xl { font-size: 92px; }
+  .t-display { font-size: 64px; }
+  .t-h1 { font-size: 52px; }
+  .t-h2 { font-size: 32px; }
+  .t-h3 { font-size: 24px; }
+  .t-token { font-size: 26px; }
 }
-.t-h2 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-h2);
-  line-height: 1.12;
-  letter-spacing: -0.018em;
+.t-title { font-size: 18px; font-weight: 700; line-height: 1.3; }
+.t-body-l { font-size: 18px; line-height: 1.5; color: var(--color-ink-soft); }
+@media (min-width: 768px) { .t-body-l { font-size: 20px; } }
+.t-body { font-size: 17px; line-height: 1.55; color: var(--color-ink-soft); }
+.t-ui { font-size: 15px; line-height: 1.5; }
+.t-small { font-size: 13px; line-height: 1.45; color: var(--color-ink-muted); }
+.t-help { font-size: 14px; line-height: 1.45; color: var(--color-ink-muted); font-weight: 400; }
+
+/* ---------------------------------------------------------------
+   Layout containers
+   --------------------------------------------------------------- */
+.container-marketing,
+.container-app {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 16px;
 }
-.t-h3 {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-h3);
-  line-height: 1.2;
-  letter-spacing: -0.012em;
-}
-.t-overline {
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: var(--text-overline);
-  line-height: 1.2;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--color-ink-3);
-}
-.t-body-lg {
-  font-size: var(--text-body-lg);
-  line-height: 1.62;
-  max-width: 72ch;
-  color: var(--color-ink-2);
-}
-.t-body {
-  font-size: var(--text-base);
-  line-height: 1.58;
-  max-width: 60ch;
-  color: var(--color-ink-2);
-}
-.t-body-sm {
-  font-size: var(--text-body-sm);
-  line-height: 1.5;
-  color: var(--color-ink-3);
-}
-.t-label {
-  font-size: var(--text-label);
-  line-height: 1.35;
-  letter-spacing: 0.005em;
-  font-weight: 500;
-  color: var(--color-ink-2);
+.container-marketing { max-width: calc(1240px + 64px); }
+.container-app { max-width: calc(1360px + 64px); }
+@media (min-width: 768px) {
+  .container-marketing,
+  .container-app { padding-inline: 32px; }
 }
 
 /* ---------------------------------------------------------------
    Surfaces
    --------------------------------------------------------------- */
-
-/* Cards get no shadow at rest — ever. If a surface has a shadow, it
-   can be dismissed. */
-.surface-card {
-  background: var(--color-raised);
-  border: 1px solid var(--color-hairline);
+/* Something you can press or pick up: ink border plus hard shadow. */
+.card-raised {
+  background: var(--color-card);
+  border: 2px solid var(--color-ink);
+  border-radius: 10px;
+  box-shadow: var(--shadow-hard);
+}
+/* Lists, tables, form groups: flat. */
+.panel {
+  background: var(--color-card);
+  border: 2px solid var(--color-ink);
+  border-radius: 10px;
 }
 
-.surface-sunken {
-  background: var(--color-sunken);
+/* Lift on hover, sink on press. Raised buttons and cards only. */
+.press {
+  transition:
+    transform 120ms var(--ease-out-jq),
+    box-shadow 120ms var(--ease-out-jq);
 }
-
-/* Status pills: tint fill, dark step for the text on it. */
-.status-ok {
-  background: var(--color-ok-tint);
-  color: var(--color-ok-text);
+.press:hover:not(:disabled):not([aria-disabled="true"]) {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--press-shadow, var(--color-ink));
 }
-.status-warn {
-  background: var(--color-warn-tint);
-  color: var(--color-warn-text);
-}
-.status-bad {
-  background: var(--color-bad-tint);
-  color: var(--color-bad-text);
-}
-.status-neutral {
-  background: var(--color-sunken);
-  color: var(--color-ink-3);
-}
-.status-accent {
-  background: var(--color-steel-100);
-  color: var(--color-steel-800);
+.press:active:not(:disabled):not([aria-disabled="true"]) {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0 var(--press-shadow, var(--color-ink));
 }
 
 /* ---------------------------------------------------------------
-   Skeletons — a spinner is reserved for button-local pending states.
+   Ticket · stub and body split by a perforation, notches cut through
+   to whatever sits behind via --hole.
    --------------------------------------------------------------- */
-@keyframes jq-shimmer {
-  0% {
-    background-position: -160% 0;
-  }
-  100% {
-    background-position: 260% 0;
-  }
+.ticket {
+  position: relative;
+  overflow: hidden;
+}
+.ticket::before,
+.ticket::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 24px;
+  height: 24px;
+  margin-top: -12px;
+  border-radius: 50%;
+  background: var(--hole, var(--color-paper));
+  border: 2px solid var(--color-ink);
+  box-sizing: border-box;
+  z-index: 1;
+}
+.ticket::before { left: -13px; }
+.ticket::after { right: -13px; }
+.perforation { border-right: 2px dashed var(--color-ink); }
+.perforation-top { border-top: 2px dashed var(--color-ink); }
+
+/* Stamp · Hired and Rejected only. */
+.stamp {
+  display: inline-block;
+  transform: rotate(-9deg);
+  border: 3px solid currentColor;
+  border-radius: 10px;
+  padding: 2px 12px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 20px;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
+/* ---------------------------------------------------------------
+   Skeleton · warm paper, shimmer only when motion is welcome
+   --------------------------------------------------------------- */
 .skeleton {
-  background: var(--color-sunken);
-  background-image: linear-gradient(
-    90deg,
-    transparent 0%,
-    color-mix(in srgb, #ffffff 70%, transparent) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg, #ede3d2 0, #f7f0e4 50%, #ede3d2 100%);
   background-size: 200% 100%;
-  animation: jq-shimmer 1.4s linear infinite;
+  border-radius: 8px;
 }
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton { animation: jq-shimmer 1.4s ease-in-out infinite; }
+  .spin { animation: jq-spin 0.8s linear infinite; }
+}
+@keyframes jq-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+@keyframes jq-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===============================================================
+   LEGACY HELPERS — remove with the alias block above.
+   =============================================================== */
+.t-overline { font-size: 13px; font-weight: 700; color: var(--color-ink-muted); }
+.t-body-lg { font-size: 18px; line-height: 1.5; color: var(--color-ink-soft); max-width: 72ch; }
+.t-body-sm { font-size: 13px; line-height: 1.45; color: var(--color-ink-muted); }
+.t-label { font-size: 15px; font-weight: 700; color: var(--color-ink); }
+.surface-card { background: var(--color-card); border: 2px solid var(--color-ink); border-radius: 10px; }
+.surface-sunken { background: var(--color-paper-deep); }
+.status-ok { background: var(--color-hired-tint); color: var(--color-hired); }
+.status-warn { background: var(--color-gold-tint); color: var(--color-ink); }
+.status-bad { background: var(--color-error-tint); color: var(--color-red-deep); }
+.status-neutral { background: var(--color-rejected-tint); color: var(--color-rejected); }
+.status-accent { background: var(--color-queue-tint); color: var(--color-queue); }
+.icon-style {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  width: 16px; height: 16px; color: var(--color-ink-muted);
+}
+.btn-primary-sm {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 44px; padding: 0 16px; border: 2px solid var(--color-ink); border-radius: 10px;
+  background: var(--color-red); color: #fff; font-weight: 700; font-size: 15px;
+  box-shadow: var(--shadow-hard); text-decoration: none;
+}
+.btn-primary-sm:hover { color: #fff; }
 
 @media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
-  }
   *,
   *::before,
   *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 100ms !important;
+    animation-duration: 150ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0ms !important;
   }
-}
-
-/* Legacy helper kept so field icons keep their offset. */
-.icon-style {
-  @apply absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4;
-  color: var(--color-ink-3);
-}
-
-/* Small primary action used in headers. */
-.btn-primary-sm {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 1px solid var(--primary);
-  background: var(--primary);
-  color: #fff;
-  padding: 0.5rem 1rem;
-  font-family: var(--font-display);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  transition: background-color 120ms ease-out;
-}
-.btn-primary-sm:hover {
-  background: var(--color-steel-800);
-  color: #fff;
 }

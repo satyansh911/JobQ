@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import axios from "axios";
 import Cookies from "js-cookie";
-import toast from "react-hot-toast";
+import { toast } from "sonner";
 import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { Company, Job } from "@/type";
 import { job_service, useAppData } from "@/context/AppContext";
