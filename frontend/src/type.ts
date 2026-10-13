@@ -75,15 +75,15 @@ export interface AppContextType {
   setLoading: React.Dispatch<React.SetStateAction<boolean>>;
   setIsAuth: React.Dispatch<React.SetStateAction<boolean>>;
   logoutUser: () => Promise<void>;
-  updateProfilePic: (formData: any) => Promise<void>;
-  updateResume: (formData: any) => Promise<void>;
+  updateProfilePic: (formData: any) => Promise<boolean>;
+  updateResume: (formData: any) => Promise<boolean>;
   updateUser: (name: string, phoneNumber: string, bio: string) => Promise<void>;
   addSkill: (
     skill: string,
     setSkill: React.Dispatch<React.SetStateAction<string>>
   ) => Promise<void>;
   removeSkill: (skill: string) => Promise<void>;
-  applyJob: (job_id: number) => Promise<void>;
+  applyJob: (job_id: number) => Promise<Application | null>;
   applications: Application[];
   fetchApplications: () => Promise<void>;
   /** False once the status check finds the backend down. */
@@ -114,6 +114,7 @@ export interface Job {
   company_name: string;
   company_logo: string;
   company_website?: string;
+  company_description?: string;
   posted_by_recruiter_id: number;
   created_at: string;
   is_active: boolean;
@@ -145,4 +146,7 @@ export interface Application {
   job_title: string;
   job_salary: number;
   job_location: string;
+  /** Joined from the applicant's profile on the recruiter's view. */
+  applicant_name?: string | null;
+  applicant_pic?: string | null;
 }

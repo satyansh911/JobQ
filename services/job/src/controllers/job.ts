@@ -290,7 +290,8 @@ export const getSingleJob = TryCatch(async (req, res) => {
   // Join the company in so the detail page can show who is hiring — the list
   // endpoint already does this, and the client type expects both fields.
   const [job] = await sql`
-    SELECT j.*, c.name AS company_name, c.logo AS company_logo, c.website AS company_website
+    SELECT j.*, c.name AS company_name, c.logo AS company_logo, c.website AS company_website,
+           c.description AS company_description
     FROM jobs j
     JOIN companies c ON j.company_id = c.company_id
     WHERE j.job_id = ${req.params.jobId}`;
@@ -329,7 +330,14 @@ export const getAllApplicationForJob = TryCatch(
     }
 
     const applications =
-      await sql`SELECT * FROM applications WHERE job_id = ${jobId} ORDER BY subscribed DESC, applied_at ASC`;
+      // The applicant's name and photo come from their profile; applications
+      // only store the email. Priority first, then oldest first.
+      await sql`
+        SELECT a.*, u.name AS applicant_name, u.profile_pic AS applicant_pic
+        FROM applications a
+        LEFT JOIN users u ON u.user_id = a.applicant_id
+        WHERE a.job_id = ${jobId}
+        ORDER BY a.subscribed DESC NULLS LAST, a.applied_at ASC`;
 
     res.json(applications);
   }

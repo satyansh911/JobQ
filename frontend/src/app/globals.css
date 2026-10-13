@@ -383,3 +383,9 @@
     transition-duration: 0ms !important;
   }
 }
+
+/* The mobile apply bar is pinned over the bottom of the page; keep the
+   footer's last links clear of it. */
+@media (max-width: 767px) {
+  body:has([data-apply-bar]) footer { padding-bottom: 96px; }
+}

@@ -59,10 +59,13 @@ export function Ticket({
 export function Stamp({
   status,
   applicationId,
+  text,
   className,
 }: {
   status: "Hired" | "Rejected";
   applicationId?: number;
+  /** Defaults to the seeker wording: "You're up!" / "Not this time". */
+  text?: string;
   className?: string;
 }) {
   const reduce = useReducedMotion();
@@ -87,7 +90,7 @@ export function Stamp({
       animate="landed"
       style={{ rotate: -9 }}
     >
-      {hired ? "You're up!" : "Not this time"}
+      {text ?? (hired ? "You're up!" : "Not this time")}
     </motion.span>
   );
 }

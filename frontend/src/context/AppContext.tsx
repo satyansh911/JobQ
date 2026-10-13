@@ -82,8 +82,10 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }
 
-  async function updateProfilePic(fromData: any) {
-    setLoading(true);
+  // Uploads use the button-level pending state. The page-level `loading`
+  // flag gates whole screens, so setting it here blanked the page mid-upload.
+  async function updateProfilePic(fromData: any): Promise<boolean> {
+    setBtnLoading(true);
     try {
       const { data } = await axios.put(
         `${user_service}/api/user/update/pic`,
@@ -97,15 +99,19 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       toast.success(data.message);
       fetchUser();
+      return true;
     } catch (error: any) {
       toast.error(apiError(error));
+      return false;
     } finally {
-      setLoading(false);
+      setBtnLoading(false);
     }
   }
 
-  async function updateResume(fromData: any) {
-    setLoading(true);
+  // Uploads use the button-level pending state. The page-level `loading`
+  // flag gates whole screens, so setting it here blanked the page mid-upload.
+  async function updateResume(fromData: any): Promise<boolean> {
+    setBtnLoading(true);
     try {
       const { data } = await axios.put(
         `${user_service}/api/user/update/resume`,
@@ -119,10 +125,12 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
 
       toast.success(data.message);
       fetchUser();
+      return true;
     } catch (error: any) {
       toast.error(apiError(error));
+      return false;
     } finally {
-      setLoading(false);
+      setBtnLoading(false);
     }
   }
 
@@ -197,7 +205,8 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
     }
   }
 
-  async function applyJob(job_id: number) {
+  /** Returns the new application, so the caller can show its ticket number. */
+  async function applyJob(job_id: number): Promise<Application | null> {
     setBtnLoading(true);
     try {
       const { data } = await axios.post(
@@ -209,11 +218,11 @@ export const AppProvider: React.FC<AppProviderProps> = ({ children }) => {
           },
         }
       );
-
-      toast.success(data.message);
-      fetchApplications();
+      await fetchApplications();
+      return data.application ?? null;
     } catch (error: any) {
-      toast.error(apiError(error));
+      toast.error(apiError(error, "Couldn't apply. Please try again."));
+      return null;
     } finally {
       setBtnLoading(false);
     }
