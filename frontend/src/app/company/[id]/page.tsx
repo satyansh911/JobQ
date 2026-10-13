@@ -1,457 +1,359 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
-import Cookies from "js-cookie";
 import { toast } from "sonner";
 import { ExternalLink, Pencil, Plus, Trash2 } from "lucide-react";
 import { Company, Job } from "@/type";
 import { job_service, useAppData } from "@/context/AppContext";
-import { formatSalary } from "@/lib/utils";
-import Loading from "@/components/loading";
-import { StatusBadge } from "@/components/status-badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-
-const initials = (n: string) =>
-  n.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
-
-const LOCATIONS = ["Remote", "Delhi", "Mumbai", "Bengaluru", "Hyderabad", "Pune", "Kolkata", "Chennai"];
+import { cn, formatSalary } from "@/lib/utils";
+import { shortDate } from "@/lib/format";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { CompanyLogo } from "@/components/jq/identity";
+import { JobChip } from "@/components/jq/status";
+import { OfflineState, Skeleton } from "@/components/jq/feedback";
+import { LostTicket, OpenCounter } from "@/components/jq/illustrations";
+import { JobRow } from "@/components/job-row";
+import { CompanyDialog } from "@/components/recruiter/company-dialog";
+import { DeleteJobDialog, JobDialog } from "@/components/recruiter/job-dialog";
+import { DeleteCompanyDialog } from "@/components/recruiter/delete-company-dialog";
+import { authHeaders, JobStats, plural, siteLabel } from "@/components/recruiter/shared";
 
 export default function CompanyPage() {
-  const { id } = useParams();
-  const { user } = useAppData();
-  const token = Cookies.get("token");
+  return (
+    <Suspense fallback={<CompanySkeleton />}>
+      <CompanyView />
+    </Suspense>
+  );
+}
+
+function CompanySkeleton() {
+  return (
+    <div className="container-app flex flex-col gap-8 pt-8 pb-20 md:pt-12" role="status" aria-label="Loading company">
+      <div className="flex gap-6 rounded-[10px] border-2 border-ink bg-card p-6 md:p-8">
+        <Skeleton className="size-20 rounded-[10px] md:size-[116px]" />
+        <div className="flex flex-1 flex-col gap-3"><Skeleton className="h-10 w-1/2" /><Skeleton className="h-4 w-1/4" /><Skeleton className="h-4 w-3/4" /></div>
+      </div>
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[76px] rounded-[10px]" />)}
+    </div>
+  );
+}
+
+/** "18 in the queue / 3 Priority", "22 applicants / 2 hired · 20 rejected" */
+function ApplicantSummary({ job, s }: { job: Job; s?: JobStats }) {
+  if (!s) return <span className="text-ink-muted">—</span>;
+  if (s.total === 0) return <span className="text-ink-muted">No applicants yet</span>;
+  const decided = [s.hired && `${s.hired} hired`, s.rejected && `${s.rejected} rejected`].filter(Boolean).join(" · ");
+  return (
+    <span className="flex flex-col">
+      <Link href={`/jobs/${job.job_id}`} className="font-bold">
+        {s.in_queue > 0 && job.is_active !== false ? `${s.in_queue} in the queue` : plural(s.total, "applicant")}
+      </Link>
+      {s.priority > 0 ? (
+        <span className="flex items-center gap-1.5 text-[14px] text-ink-soft">
+          <span className="size-3.5 rounded-full border-2 border-ink bg-gold" aria-hidden />
+          {s.priority} Priority
+        </span>
+      ) : decided ? (
+        <span className="text-[14px] text-ink-soft">{decided}</span>
+      ) : null}
+    </span>
+  );
+}
+
+function CompanyView() {
+  const { id } = useParams<{ id: string }>();
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const { user, loading: authLoading } = useAppData();
 
   const [company, setCompany] = useState<Company | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [btnLoading, setBtnLoading] = useState(false);
+  const [state, setState] = useState<"loading" | "ready" | "missing" | "offline">("loading");
+  const [stats, setStats] = useState<Record<number, JobStats>>({});
 
-  const [addOpen, setAddOpen] = useState(false);
-  const [editing, setEditing] = useState<Job | null>(null);
-  const [confirming, setConfirming] = useState<Job | null>(null);
+  const [posting, setPosting] = useState(false);
+  const [editingJob, setEditingJob] = useState<Job | null>(null);
+  const [deletingJob, setDeletingJob] = useState<Job | null>(null);
+  const [editingCompany, setEditingCompany] = useState(false);
+  const [deletingCompany, setDeletingCompany] = useState(false);
 
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [role, setRole] = useState("");
-  const [salary, setSalary] = useState("");
-  const [location, setLocation] = useState("");
-  const [openings, setOpenings] = useState("");
-  const [jobType, setJobType] = useState("");
-  const [workLocation, setWorkLocation] = useState("");
-  const [isActive, setIsActive] = useState(true);
+  const isOwner = !!user && !!company && user.user_id === company.recruiter_id;
 
-  const clear = () => {
-    setTitle(""); setDescription(""); setRole(""); setSalary("");
-    setLocation(""); setOpenings(""); setJobType(""); setWorkLocation("");
-    setIsActive(true);
-  };
-
-  async function fetchCompany() {
+  const load = useCallback(async () => {
     try {
       const { data } = await axios.get(`${job_service}/api/job/company/${id}`);
       setCompany(data);
-    } catch {
-      setCompany(null);
-    } finally {
-      setLoading(false);
+      setState("ready");
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      setState(status === 404 || status === 400 ? "missing" : !status || status >= 502 ? "offline" : "missing");
     }
-  }
-
-  useEffect(() => {
-    fetchCompany();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const isOwner = !!user && !!company && user.user_id === company.recruiter_id;
-  const jobs = company?.jobs || [];
-  const activeCount = jobs.filter((j) => j.is_active).length;
-
-  const valid = title && description && role && salary && location && openings && jobType && workLocation;
-
-  const addJob = async () => {
-    if (!valid) return toast.error("Every field is required");
-    setBtnLoading(true);
+  const loadStats = useCallback(async () => {
     try {
-      await axios.post(
-        `${job_service}/api/job/new`,
-        {
-          title, description, role,
-          salary: Number(salary), location,
-          openings: Number(openings),
-          job_type: jobType, work_location: workLocation,
-          company_id: id,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success("Job posted");
-      clear();
-      setAddOpen(false);
-      fetchCompany();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Could not post the job");
-    } finally {
-      setBtnLoading(false);
+      const { data } = await axios.get<JobStats[]>(`${job_service}/api/job/company/${id}/stats`, authHeaders());
+      setStats(Object.fromEntries(data.map((s) => [s.job_id, s])));
+    } catch {
+      /* counts are extra; the table still works without them */
     }
-  };
+  }, [id]);
 
-  const openEdit = (job: Job) => {
-    setEditing(job);
-    setTitle(job.title);
-    setDescription(job.description);
-    setRole(job.role);
-    setSalary(String(job.salary || ""));
-    setLocation(job.location || "");
-    setOpenings(String(Math.round(Number(job.openings))));
-    setJobType(job.job_type);
-    setWorkLocation(job.work_location);
-    setIsActive(job.is_active);
-  };
+  useEffect(() => {
+    load();
+  }, [load]);
 
-  const updateJob = async () => {
-    if (!editing) return;
-    setBtnLoading(true);
-    try {
-      await axios.put(
-        `${job_service}/api/job/${editing.job_id}`,
-        {
-          title, description, role,
-          salary: Number(salary), location,
-          openings: Number(openings),
-          job_type: jobType, work_location: workLocation,
-          is_active: isActive,
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      toast.success("Job updated");
-      setEditing(null);
-      clear();
-      fetchCompany();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Could not update the job");
-    } finally {
-      setBtnLoading(false);
+  useEffect(() => {
+    if (isOwner) loadStats();
+  }, [isOwner, loadStats]);
+
+  const jobs = useMemo(
+    () =>
+      [...(company?.jobs ?? [])].sort(
+        (a, b) => Number(b.is_active !== false) - Number(a.is_active !== false) || +new Date(b.created_at) - +new Date(a.created_at)
+      ),
+    [company]
+  );
+
+  // Deep links: ?post=1 from My companies, ?edit=<job> from the applicant review.
+  useEffect(() => {
+    if (!isOwner) return;
+    const edit = params.get("edit");
+    const post = params.get("post");
+    if (!edit && !post) return;
+    if (post) setPosting(true);
+    if (edit) {
+      const job = jobs.find((j) => String(j.job_id) === edit);
+      if (job) setEditingJob(job);
     }
-  };
+    router.replace(pathname, { scroll: false });
+  }, [isOwner, params, jobs, router, pathname]);
 
-  const deleteJob = async (jobId: number) => {
-    setBtnLoading(true);
-    try {
-      await axios.delete(`${job_service}/api/job/${jobId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      toast.success("Posting deleted");
-      fetchCompany();
-    } catch (error: any) {
-      toast.error(error?.response?.data?.message || "Could not delete");
-    } finally {
-      setBtnLoading(false);
-      setConfirming(null);
-    }
-  };
-
-  if (loading) return <Loading />;
-
-  if (!company) {
+  if (state === "loading" || (state === "ready" && authLoading)) return <CompanySkeleton />;
+  if (state === "offline") return <div className="container-app py-12"><OfflineState onRetry={load} /></div>;
+  if (state === "missing" || !company) {
     return (
-      <div className="mx-auto max-w-[900px] px-4 py-20 text-center md:px-6">
-        <h1 className="t-h2">Company not found</h1>
-        <Link href="/jobs" className="btn-primary-sm mt-6">Browse open roles</Link>
+      <div className="container-app flex flex-col items-center gap-4 py-16 text-center">
+        <LostTicket className="w-[260px]" label="" />
+        <h1 className="font-display text-[36px] leading-none font-extrabold tracking-[-0.03em]">We can&apos;t find that company.</h1>
+        <p className="text-ink-soft">It may have been deleted, or the link is wrong.</p>
+        <Link href={user?.role === "recruiter" ? "/account" : "/jobs"} className={buttonVariants({ variant: "primary" })}>
+          {user?.role === "recruiter" ? "My companies" : "Browse jobs"}
+        </Link>
       </div>
     );
   }
 
-  /* One form, shared by the add and edit dialogs. */
-  const form = (
-    <div className="space-y-4">
-      <div className="space-y-1.5">
-        <Label htmlFor="j-title" className="t-label">Job title</Label>
-        <Input id="j-title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      </div>
-      <div className="space-y-1.5">
-        <Label htmlFor="j-desc" className="t-label">Description</Label>
-        <textarea
-          id="j-desc"
-          rows={5}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="A short role summary, then responsibilities, then requirements."
-          className="w-full resize-y border border-line-strong bg-sunken px-3 py-2 text-[15px] placeholder:text-ink-4 focus-visible:border-steel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel/40"
-        />
-        <p className="t-body-sm">
-          Candidates read this as prose. A summary, responsibilities and
-          requirements — in that order — reads best.
-        </p>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label htmlFor="j-role" className="t-label">Role</Label>
-          <Input id="j-role" value={role} onChange={(e) => setRole(e.target.value)} placeholder="Frontend Engineer" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-salary" className="t-label">Annual salary (₹)</Label>
-          <Input id="j-salary" type="number" inputMode="numeric" value={salary} onChange={(e) => setSalary(e.target.value)} placeholder="3200000" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-location" className="t-label">Location</Label>
-          <Select value={location} onValueChange={setLocation}>
-            <SelectTrigger id="j-location"><SelectValue placeholder="Select a location" /></SelectTrigger>
-            <SelectContent>
-              {LOCATIONS.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-openings" className="t-label">Openings</Label>
-          <Input id="j-openings" type="number" inputMode="numeric" min={1} value={openings} onChange={(e) => setOpenings(e.target.value)} placeholder="2" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-type" className="t-label">Job type</Label>
-          <Select value={jobType} onValueChange={setJobType}>
-            <SelectTrigger id="j-type"><SelectValue placeholder="Select a type" /></SelectTrigger>
-            <SelectContent>
-              {["Full-time", "Part-time", "Contract", "Internship"].map((t) => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="j-work" className="t-label">Work location</Label>
-          <Select value={workLocation} onValueChange={setWorkLocation}>
-            <SelectTrigger id="j-work"><SelectValue placeholder="Select" /></SelectTrigger>
-            <SelectContent>
-              {["On-site", "Remote", "Hybrid"].map((t) => (
-                <SelectItem key={t} value={t}>{t}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+  const openJobs = jobs.filter((j) => j.is_active !== false);
+  const totalApplications = Object.values(stats).reduce((n, s) => n + s.total, 0);
+  const upsert = (job: Job) =>
+    setCompany((c) => c && { ...c, jobs: [job, ...(c.jobs ?? []).filter((j) => j.job_id !== job.job_id)] });
+
+  const header = (
+    <section className="flex flex-col gap-4 rounded-[10px] border-2 border-ink bg-card p-5 shadow-hard-lg md:flex-row md:gap-7 md:p-7">
+      <div className="flex items-center gap-4 md:items-start">
+        <CompanyLogo name={company.name} src={company.logo} size={116} className="max-md:!size-16 max-md:!text-[22px]" />
+        <div className="min-w-0 md:hidden">
+          <h1 className="font-display text-[28px] leading-[1.05] font-extrabold tracking-[-0.03em] break-words">{company.name}</h1>
+          <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-[15px]">{siteLabel(company.website)}</a>
         </div>
       </div>
-      {editing && (
-        <div className="space-y-1.5">
-          <Label htmlFor="j-active" className="t-label">Posting status</Label>
-          <Select value={isActive ? "active" : "closed"} onValueChange={(v) => setIsActive(v === "active")}>
-            <SelectTrigger id="j-active"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">Active — accepting applications</SelectItem>
-              <SelectItem value="closed">Closed — visible but not accepting</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-4 max-md:hidden">
+          <h1 className="min-w-0 font-display text-[44px] leading-none font-extrabold tracking-[-0.035em] break-words lg:text-[56px]">{company.name}</h1>
+          {isOwner && (
+            <div className="flex gap-2.5">
+              <Button variant="secondary" size="sm" onClick={() => setEditingCompany(true)}><Pencil strokeWidth={2.5} /> Edit</Button>
+              <Button variant="secondary" size="sm" className="border-red-deep text-red-deep" onClick={() => setDeletingCompany(true)}><Trash2 strokeWidth={2.5} /> Delete</Button>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+        <a href={company.website} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 self-start font-bold max-md:hidden">
+          {siteLabel(company.website)} <ExternalLink className="size-4" strokeWidth={2.5} aria-hidden />
+          <span className="sr-only">(opens in a new tab)</span>
+        </a>
+        <p className="max-w-[46em] text-ink-soft">{company.description}</p>
+        {isOwner && (
+          <div className="flex gap-2.5 md:hidden">
+            <Button variant="secondary" size="sm" className="flex-1" onClick={() => setEditingCompany(true)}><Pencil strokeWidth={2.5} /> Edit</Button>
+            <Button variant="secondary" size="sm" className="flex-1 border-red-deep text-red-deep" onClick={() => setDeletingCompany(true)}><Trash2 strokeWidth={2.5} /> Delete</Button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 
-  return (
-    <div className="mx-auto max-w-[900px] px-4 py-8 md:px-6 md:py-10">
-      {/* company header */}
-      <section className="border border-hairline bg-raised p-6">
-        <div className="flex flex-wrap items-start gap-4">
-          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden border border-hairline bg-sunken font-[family-name:var(--font-display)] text-[18px] font-semibold text-ink-3">
-            {company.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logo} alt="" className="size-full object-cover" />
-            ) : (
-              initials(company.name)
-            )}
-          </span>
-          <div className="min-w-0 flex-1">
-            <h1 className="t-h2">{company.name}</h1>
-            <p className="t-body mt-1">{company.description}</p>
-            {company.website && (
-              <a
-                href={company.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-[14px]"
-              >
-                {company.website.replace(/^https?:\/\//, "")}
-                <ExternalLink className="size-3.5" />
-              </a>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* postings */}
-      <section className="mt-6 border border-hairline bg-raised">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline px-6 py-4">
-          <div>
-            <h2 className="t-h3">Open roles</h2>
-            <p className="t-body-sm mt-0.5">
-              <span className="numeric">{activeCount}</span> active ·{" "}
-              <span className="numeric">{jobs.length}</span> total
+  /* ---------------- public view ---------------- */
+  if (!isOwner) {
+    return (
+      <div className="container-app flex flex-col gap-8 pt-6 pb-20 md:pt-12">
+        {header}
+        <section className="flex flex-col gap-4">
+          <h2 className="font-display text-[30px] leading-none font-extrabold tracking-[-0.03em] md:text-[40px]">
+            Open roles <span className="text-[0.6em] text-ink-muted">{openJobs.length}</span>
+          </h2>
+          {openJobs.length === 0 ? (
+            <p className="rounded-[10px] border-2 border-dashed border-ink bg-paper-deep px-5 py-6 text-ink-soft">
+              {company.name} isn&apos;t hiring right now. Check back soon, or <Link href="/jobs" className="font-bold">browse other jobs</Link>.
             </p>
-          </div>
-          {isOwner && (
-            <button onClick={() => { clear(); setAddOpen(true); }} className="btn-primary-sm">
-              <Plus className="size-4" /> Post a job
-            </button>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {openJobs.map((j) => <JobRow key={j.job_id} job={{ ...j, company_name: company.name, company_logo: company.logo }} />)}
+            </ul>
           )}
+        </section>
+      </div>
+    );
+  }
+
+  /* ---------------- owner view ---------------- */
+  return (
+    <div className="container-app flex flex-col gap-6 pt-6 pb-20 md:gap-8 md:pt-9">
+      <nav aria-label="Breadcrumb" className="text-[15px] text-ink-soft">
+        <Link href="/account" className="font-bold">My companies</Link> / <span aria-current="page">{company.name}</span>
+      </nav>
+      {header}
+
+      <section className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="font-display text-[30px] leading-none font-extrabold tracking-[-0.03em] md:text-[40px]">
+            Jobs <span className="text-[0.6em] text-ink-muted">{jobs.length}</span>
+          </h2>
+          {jobs.length > 0 && <Button onClick={() => setPosting(true)}><Plus strokeWidth={2.75} /> Post a job</Button>}
         </div>
 
         {jobs.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <h3 className="t-h3">No roles posted yet</h3>
-            <p className="t-body-sm mx-auto mt-1 max-w-sm">
-              {isOwner
-                ? "Post your first role and it appears in the public listing immediately."
-                : "This company hasn't posted anything yet."}
-            </p>
-            {isOwner && (
-              <button onClick={() => { clear(); setAddOpen(true); }} className="btn-primary-sm mt-5">
-                Post a job
-              </button>
-            )}
+          <div className="flex flex-col items-center gap-3 rounded-[10px] border-2 border-dashed border-ink px-6 py-10 text-center">
+            <OpenCounter className="w-[200px]" label="" />
+            <h3 className="font-display text-[26px] leading-none font-extrabold tracking-[-0.03em]">No jobs posted yet.</h3>
+            <p className="text-ink-soft">Post your first role and applicants will queue up here.</p>
+            <Button onClick={() => setPosting(true)} className="mt-1 max-md:w-full">Post a job</Button>
           </div>
         ) : (
-          <ul className="divide-y divide-[color-mix(in_srgb,var(--color-ink)_16%,transparent)]">
-            {jobs.map((j) => (
-              <li key={j.job_id} className="flex flex-wrap items-center gap-4 px-6 py-4">
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Link
-                      href={`/jobs/${j.job_id}`}
-                      className="font-[family-name:var(--font-display)] text-[17px] font-semibold"
-                    >
-                      {j.title}
-                    </Link>
-                    <StatusBadge kind={j.is_active ? "ok" : "bad"}>
-                      {j.is_active ? "Active" : "Closed"}
-                    </StatusBadge>
-                  </div>
-                  <p className="t-body-sm mt-0.5">
-                    {[j.role, j.location, j.location === j.work_location ? null : j.work_location, j.job_type]
-                      .filter(Boolean)
-                      .join(" · ")}{" · "}
-                    <span className="numeric">{Math.round(Number(j.openings))}</span>{" "}
-                    {Math.round(Number(j.openings)) === 1 ? "opening" : "openings"}
-                  </p>
-                </div>
+          <>
+            {/* 1024+: table */}
+            <div className="overflow-hidden rounded-[10px] border-2 border-ink bg-card max-lg:hidden">
+              <table className="w-full text-left">
+                <thead className="border-b-2 border-ink text-[14px]">
+                  <tr>
+                    {["Job", "Where", "Salary", "Applicants", "Posted", "Status"].map((h) => <th key={h} scope="col" className="px-4 py-3 font-bold">{h}</th>)}
+                    <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobs.map((j) => {
+                    const closed = j.is_active === false;
+                    const openings = Math.round(Number(j.openings));
+                    return (
+                      <tr key={j.job_id} className={cn("border-t-[1.5px] border-line first:border-t-0", closed && "bg-paper")}>
+                        <td className="px-4 py-3.5">
+                          <Link href={`/jobs/${j.job_id}`} className={cn("font-bold", closed ? "text-ink-muted" : "text-ink")}>{j.title}</Link>
+                          <div className="text-[14px] text-ink-soft">{j.job_type} · {plural(openings, "opening")}</div>
+                        </td>
+                        <td className={cn("px-4 py-3.5", closed && "text-ink-muted")}>
+                          {j.location === j.work_location || j.location === "Remote" ? j.location : `${j.location} · ${j.work_location}`}
+                        </td>
+                        <td className={cn("px-4 py-3.5 font-bold whitespace-nowrap", closed && "text-ink-muted")}>{formatSalary(j.salary)}</td>
+                        <td className="px-4 py-3.5"><ApplicantSummary job={j} s={stats[j.job_id]} /></td>
+                        <td className="px-4 py-3.5 whitespace-nowrap text-ink-soft">{shortDate(j.created_at)}</td>
+                        <td className="px-4 py-3.5"><JobChip active={!closed} /></td>
+                        <td className="px-4 py-3">
+                          <div className="flex justify-end gap-2">
+                            <Link href={`/jobs/${j.job_id}`} className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "shadow-none")}>
+                              {closed ? "View applicants" : "Review applicants"}
+                            </Link>
+                            <Button variant="secondary" size="icon" className="size-11 shadow-none" aria-label={`Edit ${j.title}`} onClick={() => setEditingJob(j)}>
+                              <Pencil strokeWidth={2.5} />
+                            </Button>
+                            <Button variant="secondary" size="icon" className="size-11 shadow-none" aria-label={`Delete ${j.title}`} onClick={() => setDeletingJob(j)}>
+                              <Trash2 strokeWidth={2.5} />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                <span className="numeric font-[family-name:var(--font-display)] text-[16px] font-semibold text-ink">
-                  {formatSalary(j.salary)}
-                </span>
-
-                {isOwner && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEdit(j)}
-                      aria-label={`Edit ${j.title}`}
-                      className="flex size-9 items-center justify-center border border-line-strong text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-                    >
-                      <Pencil className="size-4" />
-                    </button>
-                    <button
-                      onClick={() => setConfirming(j)}
-                      aria-label={`Delete ${j.title}`}
-                      className="flex size-9 items-center justify-center border border-line-strong text-ink-3 hover:bg-bad-tint hover:text-bad-text"
-                    >
-                      <Trash2 className="size-4" />
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
+            {/* below 1024: cards */}
+            <ul className="flex flex-col gap-3 lg:hidden">
+              {jobs.map((j) => {
+                const closed = j.is_active === false;
+                return (
+                  <li key={j.job_id} className={cn("flex flex-col gap-3 rounded-[10px] border-2 border-ink p-4", closed ? "bg-paper" : "bg-card")}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link href={`/jobs/${j.job_id}`} className={cn("font-bold", closed ? "text-ink-muted" : "text-ink")}>{j.title}</Link>
+                        <div className="text-[14px] text-ink-soft">
+                          {[j.location, j.location === j.work_location ? null : j.work_location, formatSalary(j.salary)].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                      <JobChip active={!closed} />
+                    </div>
+                    <div className="flex items-end justify-between gap-3">
+                      <ApplicantSummary job={j} s={stats[j.job_id]} />
+                      <div className="flex gap-2">
+                        <Button variant="secondary" size="icon" className="size-11 shadow-none" aria-label={`Edit ${j.title}`} onClick={() => setEditingJob(j)}><Pencil strokeWidth={2.5} /></Button>
+                        <Button variant="secondary" size="icon" className="size-11 shadow-none" aria-label={`Delete ${j.title}`} onClick={() => setDeletingJob(j)}><Trash2 strokeWidth={2.5} /></Button>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </section>
 
-      {/* post a job */}
-      <Dialog open={addOpen} onOpenChange={(o) => { setAddOpen(o); if (!o) clear(); }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
-          <DialogHeader>
-            <DialogTitle className="t-h3">Post a job</DialogTitle>
-            <DialogDescription className="t-body-sm">
-              It goes live in the public listing as soon as you post it.
-            </DialogDescription>
-          </DialogHeader>
-          {form}
-          <DialogFooter>
-            <button
-              onClick={() => setAddOpen(false)}
-              className="border border-line-strong px-4 py-2 text-[15px] font-medium text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-            >
-              Cancel
-            </button>
-            <button onClick={addJob} disabled={btnLoading} className="btn-primary-sm disabled:opacity-45">
-              {btnLoading ? "Posting…" : "Post job"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* edit posting */}
-      <Dialog open={!!editing} onOpenChange={(o) => { if (!o) { setEditing(null); clear(); } }}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[560px]">
-          <DialogHeader>
-            <DialogTitle className="t-h3">Edit posting</DialogTitle>
-            <DialogDescription className="t-body-sm">
-              Changes are live immediately. Closing a posting keeps it readable
-              but stops new applications.
-            </DialogDescription>
-          </DialogHeader>
-          {form}
-          <DialogFooter>
-            <button
-              onClick={() => { setEditing(null); clear(); }}
-              className="border border-line-strong px-4 py-2 text-[15px] font-medium text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-            >
-              Cancel
-            </button>
-            <button onClick={updateJob} disabled={btnLoading} className="btn-primary-sm disabled:opacity-45">
-              {btnLoading ? "Saving…" : "Save changes"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* delete confirm — replaces the native confirm() */}
-      <Dialog open={!!confirming} onOpenChange={(o) => !o && setConfirming(null)}>
-        <DialogContent className="sm:max-w-[420px]">
-          <DialogHeader>
-            <DialogTitle className="t-h3">Delete this posting?</DialogTitle>
-            <DialogDescription className="t-body-sm">
-              &ldquo;{confirming?.title}&rdquo; and every application attached to
-              it are removed. This cannot be undone — closing it instead keeps
-              the record.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <button
-              onClick={() => setConfirming(null)}
-              className="border border-line-strong px-4 py-2 text-[15px] font-medium text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-            >
-              Keep it
-            </button>
-            <button
-              onClick={() => confirming && deleteJob(confirming.job_id)}
-              disabled={btnLoading}
-              className="border border-destructive bg-destructive px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-white hover:bg-[#7a3129] disabled:opacity-45"
-            >
-              {btnLoading ? "Deleting…" : "Delete posting"}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <JobDialog
+        open={posting || !!editingJob}
+        onOpenChange={(o) => { if (!o) { setPosting(false); setEditingJob(null); } }}
+        companyId={company.company_id}
+        companyName={company.name}
+        job={editingJob}
+        applicants={editingJob ? stats[editingJob.job_id]?.total ?? 0 : 0}
+        onSaved={(job, created) => {
+          upsert(job);
+          if (created) {
+            toast.success(`${job.title} is live. Applicants can start queueing.`, {
+              action: { label: "View job", onClick: () => router.push(`/jobs/${job.job_id}`) },
+            });
+            loadStats();
+          } else {
+            toast.success("Job saved.");
+          }
+        }}
+        onDelete={(job) => { setEditingJob(null); setDeletingJob(job); }}
+      />
+      <DeleteJobDialog
+        job={deletingJob}
+        applicants={deletingJob ? stats[deletingJob.job_id]?.total ?? 0 : 0}
+        onOpenChange={(o) => !o && setDeletingJob(null)}
+        onDeleted={(job) => {
+          setCompany((c) => c && { ...c, jobs: (c.jobs ?? []).filter((x) => x.job_id !== job.job_id) });
+          toast.success(`${job.title} is deleted.`);
+        }}
+        onClosedInstead={(job) => {
+          upsert(job);
+          toast.success(`${job.title} is closed. Nobody new can apply.`);
+        }}
+      />
+      <CompanyDialog open={editingCompany} onOpenChange={setEditingCompany} company={company} onSaved={(c) => { setCompany((old) => old && { ...old, ...c }); toast.success("Company saved."); }} />
+      <DeleteCompanyDialog
+        company={deletingCompany ? company : null}
+        jobs={jobs.length}
+        applications={totalApplications}
+        onOpenChange={(o) => !o && setDeletingCompany(false)}
+        onDeleted={() => {
+          toast.success(`${company.name} is deleted.`);
+          router.replace("/account");
+        }}
+      />
     </div>
   );
 }

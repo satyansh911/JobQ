@@ -54,7 +54,7 @@ function completeness(user: User) {
 /* ------------------------------------------------------------------ *
  * Edit profile
  * ------------------------------------------------------------------ */
-function EditProfile({ user, open, onOpenChange }: { user: User; open: boolean; onOpenChange: (o: boolean) => void }) {
+export function EditProfile({ user, open, onOpenChange }: { user: User; open: boolean; onOpenChange: (o: boolean) => void }) {
   const { updateUser, updateProfilePic, btnLoading } = useAppData();
   const [name, setName] = useState(user.name);
   const [phone, setPhone] = useState(user.phone_number ?? "");
@@ -131,11 +131,11 @@ function EditProfile({ user, open, onOpenChange }: { user: User; open: boolean; 
           />
           {phoneError && <span id="ep-phone-err" className="text-[14px] text-red-deep">{phoneError}</span>}
         </div>
-        <div className="flex flex-col gap-1.5 sm:col-span-2">
+        {user.role === "jobseeker" && <div className="flex flex-col gap-1.5 sm:col-span-2">
           <Label htmlFor="ep-bio">Short bio</Label>
           <Textarea id="ep-bio" value={bio} maxLength={BIO_MAX} onChange={(e) => setBio(e.target.value)} placeholder="A sentence or two about what you build and the role you want." />
           <span className="t-help self-end tabular-nums">{bio.length} / {BIO_MAX}</span>
-        </div>
+        </div>}
       </div>
     </PanelDialog>
   );

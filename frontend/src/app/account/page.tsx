@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAppData } from "@/context/AppContext";
 import { Skeleton } from "@/components/jq/feedback";
 import { SeekerDashboard } from "@/components/dashboard/seeker-dashboard";
-import Info from "./components/info";
-import Company from "./components/company";
+import { MyCompanies } from "@/components/recruiter/my-companies";
 
 function DashboardSkeleton() {
   return (
@@ -44,10 +43,5 @@ export default function AccountPage() {
     );
   }
 
-  return (
-    <div className="mx-auto max-w-[900px] px-4 py-8 md:px-6 md:py-10">
-      <Info user={user} isYourAccount={true} />
-      <Company />
-    </div>
-  );
+  return <MyCompanies user={user} />;
 }

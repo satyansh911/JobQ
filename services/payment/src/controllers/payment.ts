@@ -75,12 +75,13 @@ export const paymentVerification = TryCatch(
       const expiryDate = new Date(now.getTime() + thirtyDays);
 
       const [updatedUser] =
-        await sql`UPDATE users SET subscription = ${expiryDate} WHERE user_id = ${user?.user_id} RETURNING user_id, subscription`;
+        await sql`UPDATE users SET subscription = ${expiryDate} WHERE user_id = ${user?.user_id} RETURNING user_id, name, email, phone_number, role, bio, resume, profile_pic, subscription, created_at`;
 
-      // Only the new expiry: never send the full row, it holds the password hash.
+      // Named columns only: the full row holds the password hash.
       res.json({
         message: "Priority is on.",
         subscription: updatedUser.subscription,
+        updatedUser,
       });
     } else {
       return res.status(400).json({

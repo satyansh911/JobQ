@@ -7,6 +7,40 @@ import { TryCatch } from "../utils/TryCatch.js";
 import { applicationStatusUpdateTemplate } from "../template.js";
 import { publishToTopic } from "../producer.js";
 
+const MAX_COMPANIES = 3;
+const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"];
+const WORK_MODES = ["On-site", "Remote", "Hybrid"];
+const STATUSES = ["Submitted", "Hired", "Rejected"];
+
+/** "kitepost.in" → "https://kitepost.in"; anything that still isn't a URL is rejected. */
+function normaliseWebsite(raw: unknown): string {
+  const value = String(raw ?? "").trim();
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  try {
+    const url = new URL(withScheme);
+    if (!url.hostname.includes(".")) throw new Error();
+    return withScheme;
+  } catch {
+    throw new ErrorHandler(400, "Add the full address, like kitepost.in");
+  }
+}
+
+async function uploadLogo(file: Express.Multer.File) {
+  if (!file.mimetype.startsWith("image/")) {
+    throw new ErrorHandler(400, "Logos need to be a PNG or JPG.");
+  }
+  const fileBuffer = getBuffer(file);
+  if (!fileBuffer || !fileBuffer.content) {
+    throw new ErrorHandler(500, "Failed to create file buffer");
+  }
+  const { data } = await axios.post(
+    `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
+    { buffer: fileBuffer.content },
+    { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
+  );
+  return { url: data.url as string, public_id: data.public_id as string };
+}
+
 export const createCompany = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const user = req.user;
@@ -16,53 +50,86 @@ export const createCompany = TryCatch(
     }
 
     if (user.role !== "recruiter") {
-      throw new ErrorHandler(
-        403,
-        "Forbidden: Only recruiter can create a company"
-      );
+      throw new ErrorHandler(403, "Only recruiters can add companies.");
     }
 
-    const { name, description, website } = req.body;
+    const name = String(req.body.name ?? "").trim();
+    const description = String(req.body.description ?? "").trim();
 
-    if (!name || !description || !website) {
-      throw new ErrorHandler(400, "All the fields required");
+    if (!name || !description || !req.body.website) {
+      throw new ErrorHandler(400, "Add a name, a description and a website.");
+    }
+    if (description.length > 500) {
+      throw new ErrorHandler(400, "Keep the description under 500 characters.");
+    }
+    const website = normaliseWebsite(req.body.website);
+
+    const [{ count }] =
+      await sql`SELECT COUNT(*)::int AS count FROM companies WHERE recruiter_id = ${user.user_id}`;
+    if (count >= MAX_COMPANIES) {
+      throw new ErrorHandler(400, "You've added 3 companies, the most one account can have.");
     }
 
     const existingCompanies =
-      await sql`SELECT company_id FROM companies WHERE name = ${name}`;
+      await sql`SELECT company_id FROM companies WHERE LOWER(name) = LOWER(${name})`;
 
     if (existingCompanies.length > 0) {
-      throw new ErrorHandler(
-        409,
-        `A company with the name ${name} already exists`
-      );
+      throw new ErrorHandler(409, `There's already a company called ${name} on JobQ.`);
     }
 
-    const file = req.file;
-
-    if (!file) {
-      throw new ErrorHandler(400, "Company Logo file is required");
-    }
-
-    const fileBuffer = getBuffer(file);
-
-    if (!fileBuffer || !fileBuffer.content) {
-      throw new ErrorHandler(500, "Failed to create file buffer");
-    }
-
-    const { data } = await axios.post(
-      `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
-      { buffer: fileBuffer.content },
-      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
-    );
+    // The logo is optional; until there is one, the app shows initials.
+    const logo = req.file ? await uploadLogo(req.file) : { url: null, public_id: null };
 
     const [newCompany] =
-      await sql`INSERT INTO companies (name, description, website, logo, logo_public_id, recruiter_id) VALUES (${name}, ${description}, ${website}, ${data.url}, ${data.public_id}, ${req.user?.user_id}) RETURNING *`;
+      await sql`INSERT INTO companies (name, description, website, logo, logo_public_id, recruiter_id) VALUES (${name}, ${description}, ${website}, ${logo.url}, ${logo.public_id}, ${user.user_id}) RETURNING *`;
 
     res.json({
       message: "Company created successfully",
       company: newCompany,
     });
+  }
+);
+
+export const updateCompany = TryCatch(
+  async (req: AuthenticatedRequest, res) => {
+    const user = req.user;
+    const { companyId } = req.params;
+
+    const [company] =
+      await sql`SELECT company_id FROM companies WHERE company_id = ${companyId} AND recruiter_id = ${user?.user_id}`;
+    if (!company) {
+      throw new ErrorHandler(404, "Company not found or you're not allowed to edit it.");
+    }
+
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : null;
+    const description = req.body.description !== undefined ? String(req.body.description).trim() : null;
+    const website = req.body.website !== undefined ? normaliseWebsite(req.body.website) : null;
+
+    if (name === "" || description === "") {
+      throw new ErrorHandler(400, "Name and description can't be empty.");
+    }
+    if (description && description.length > 500) {
+      throw new ErrorHandler(400, "Keep the description under 500 characters.");
+    }
+    if (name) {
+      const clash =
+        await sql`SELECT company_id FROM companies WHERE LOWER(name) = LOWER(${name}) AND company_id <> ${companyId}`;
+      if (clash.length > 0) {
+        throw new ErrorHandler(409, `There's already a company called ${name} on JobQ.`);
+      }
+    }
+
+    const logo = req.file ? await uploadLogo(req.file) : null;
+
+    const [updated] = await sql`UPDATE companies SET
+      name = COALESCE(${name}, name),
+      description = COALESCE(${description}, description),
+      website = COALESCE(${website}, website),
+      logo = COALESCE(${logo?.url ?? null}, logo),
+      logo_public_id = COALESCE(${logo?.public_id ?? null}, logo_public_id)
+      WHERE company_id = ${companyId} RETURNING *`;
+
+    res.json({ message: "Company updated", company: updated });
   }
 );
 
@@ -113,8 +180,17 @@ export const createJob = TryCatch(async (req: AuthenticatedRequest, res) => {
     openings,
   } = req.body;
 
-  if (!title || !description || !salary || !location || !role || !openings) {
-    throw new ErrorHandler(400, "All the fields required");
+  if (!title?.trim() || !description?.trim() || !location || !role) {
+    throw new ErrorHandler(400, "Add a title, role, description and city.");
+  }
+  if (!(Number(salary) > 0)) {
+    throw new ErrorHandler(400, "Add the annual salary in rupees.");
+  }
+  if (!Number.isInteger(Number(openings)) || Number(openings) < 1) {
+    throw new ErrorHandler(400, "Openings must be at least 1.");
+  }
+  if (!JOB_TYPES.includes(job_type) || !WORK_MODES.includes(work_location)) {
+    throw new ErrorHandler(400, "Pick a work mode and a job type.");
   }
 
   const [company] =
@@ -224,8 +300,18 @@ export const deleteJob = TryCatch(async (req: AuthenticatedRequest, res) => {
 
 export const getAllCompany = TryCatch(
   async (req: AuthenticatedRequest, res) => {
-    const companies =
-      await sql`SELECT * FROM companies WHERE recruiter_id = ${req.user?.user_id}`;
+    // Counts for the company cards and the delete confirmation.
+    const companies = await sql`
+      SELECT c.*,
+        (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.company_id AND COALESCE(j.is_active, true))::int AS open_jobs,
+        (SELECT COUNT(*) FROM jobs j WHERE j.company_id = c.company_id AND NOT COALESCE(j.is_active, true))::int AS closed_jobs,
+        (SELECT COUNT(*) FROM applications a JOIN jobs j ON j.job_id = a.job_id
+          WHERE j.company_id = c.company_id AND a.status = 'Submitted')::int AS in_queue,
+        (SELECT COUNT(*) FROM applications a JOIN jobs j ON j.job_id = a.job_id
+          WHERE j.company_id = c.company_id)::int AS application_count
+      FROM companies c
+      WHERE c.recruiter_id = ${req.user?.user_id}
+      ORDER BY c.created_at ASC`;
 
     res.json(companies);
   }
@@ -252,6 +338,32 @@ export const getCompanyDetails = TryCatch(
     }
 
     res.json(companyData);
+  }
+);
+
+/** Applicant counts per job, for the owner's company page. */
+export const getCompanyStats = TryCatch(
+  async (req: AuthenticatedRequest, res) => {
+    const [company] =
+      await sql`SELECT company_id FROM companies WHERE company_id = ${req.params.id} AND recruiter_id = ${req.user?.user_id}`;
+    if (!company) {
+      throw new ErrorHandler(404, "Company not found");
+    }
+
+    const stats = await sql`
+      SELECT j.job_id,
+        COUNT(a.application_id) FILTER (WHERE a.status = 'Submitted')::int AS in_queue,
+        COUNT(a.application_id) FILTER (WHERE a.status = 'Hired')::int AS hired,
+        COUNT(a.application_id) FILTER (WHERE a.status = 'Rejected')::int AS rejected,
+        COUNT(a.application_id) FILTER (WHERE a.status = 'Submitted' AND u.subscription > NOW())::int AS priority,
+        COUNT(a.application_id)::int AS total
+      FROM jobs j
+      LEFT JOIN applications a ON a.job_id = j.job_id
+      LEFT JOIN users u ON u.user_id = a.applicant_id
+      WHERE j.company_id = ${req.params.id}
+      GROUP BY j.job_id`;
+
+    res.json(stats);
   }
 );
 
@@ -331,13 +443,18 @@ export const getAllApplicationForJob = TryCatch(
 
     const applications =
       // The applicant's name and photo come from their profile; applications
-      // only store the email. Priority first, then oldest first.
+      // only store the email. Priority follows the applicant's subscription
+      // as it is now, so buying it lifts applications already sent.
+      // Priority first, then oldest first.
       await sql`
-        SELECT a.*, u.name AS applicant_name, u.profile_pic AS applicant_pic
+        SELECT a.application_id, a.job_id, a.applicant_id, a.applicant_email, a.status,
+               a.resume, a.applied_at,
+               COALESCE(u.subscription > NOW(), false) AS subscribed,
+               u.name AS applicant_name, u.profile_pic AS applicant_pic
         FROM applications a
         LEFT JOIN users u ON u.user_id = a.applicant_id
         WHERE a.job_id = ${jobId}
-        ORDER BY a.subscribed DESC NULLS LAST, a.applied_at ASC`;
+        ORDER BY subscribed DESC, a.applied_at ASC`;
 
     res.json(applications);
   }
@@ -356,6 +473,10 @@ export const updateApplication = TryCatch(
     }
 
     const { id } = req.params;
+
+    if (!STATUSES.includes(req.body.status)) {
+      throw new ErrorHandler(400, "Status must be Submitted, Hired or Rejected.");
+    }
 
     const [application] =
       await sql`SELECT * FROM applications WHERE application_id = ${id}`;
@@ -380,7 +501,7 @@ export const updateApplication = TryCatch(
 
     const message = {
       to: application.applicant_email,
-      subject: "Application Update - Job portal",
+      subject: `Update on your application for ${job.title} · JobQ`,
       html: applicationStatusUpdateTemplate(job.title),
     };
 

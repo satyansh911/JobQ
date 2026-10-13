@@ -37,6 +37,9 @@ async function initDB() {
     )
     `;
 
+    // Logos are optional: until one is uploaded the app shows initials.
+    await sql`ALTER TABLE companies ALTER COLUMN logo DROP NOT NULL, ALTER COLUMN logo_public_id DROP NOT NULL`;
+
     await sql`
     CREATE TABLE IF NOT EXISTS jobs(
     job_id SERIAL PRIMARY KEY,

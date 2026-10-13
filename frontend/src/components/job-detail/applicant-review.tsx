@@ -247,7 +247,7 @@ export function ApplicantReview({
                       <td className="px-4 py-2.5"><a href={a.resume} target="_blank" rel="noopener noreferrer" className="font-bold">View PDF</a></td>
                       <td className="px-4 py-2.5 whitespace-nowrap text-ink-muted">{shortDate(a.applied_at)}</td>
                       <td className="px-4 py-2.5"><StatusSelect application={a} name={name} onChange={(s) => setStatus(a, s)} /></td>
-                      <td className="px-4 py-2.5"><Link href={`/account/${a.applicant_id}`} className="font-bold">Profile</Link></td>
+                      <td className="px-4 py-2.5"><Link href={`/account/${a.applicant_id}?job=${job.job_id}&application=${a.application_id}`} className="font-bold">Profile</Link></td>
                     </tr>
                   );
                 })}
@@ -283,7 +283,7 @@ export function ApplicantReview({
                     <StatusSelect application={a} name={name} onChange={(s) => setStatus(a, s)} />
                     <span className="flex gap-4 text-[15px]">
                       <a href={a.resume} target="_blank" rel="noopener noreferrer" className="font-bold">Résumé</a>
-                      <Link href={`/account/${a.applicant_id}`} className="font-bold">Profile</Link>
+                      <Link href={`/account/${a.applicant_id}?job=${job.job_id}&application=${a.application_id}`} className="font-bold">Profile</Link>
                     </span>
                   </div>
                   <span className="t-help">Applied {shortDate(a.applied_at)}</span>
