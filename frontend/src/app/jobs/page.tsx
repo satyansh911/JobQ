@@ -1,557 +1,629 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import React, { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
-import Cookies from "js-cookie";
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { MapPin, Search, SlidersHorizontal, X } from "lucide-react";
 import { Job } from "@/type";
 import { job_service, useAppData } from "@/context/AppContext";
-import { formatSalary, cn } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { JobRow, JobRowSkeleton } from "@/components/job-row";
+import { OfflineState, Skeleton } from "@/components/jq/feedback";
+import { TooNarrow } from "@/components/jq/illustrations";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
+
+/* ------------------------------------------------------------------ *
+ * Filter model
+ * ------------------------------------------------------------------ */
+type Posted = "day" | "week" | "month" | null;
 
 type Facets = {
   work_location: string[];
   job_type: string[];
   location: string[];
-  role: string[];
-  company: string[];
-  openings: string | null;
-  posted: string | null;
+  role: string | null;
+  company: string | null;
+  minSalary: number | null;
+  multiOpening: boolean;
+  posted: Posted;
 };
 
 const EMPTY: Facets = {
   work_location: [],
   job_type: [],
   location: [],
-  role: [],
-  company: [],
-  openings: null,
+  role: null,
+  company: null,
+  minSalary: null,
+  multiOpening: false,
   posted: null,
 };
 
-const POSTED_WINDOWS: Record<string, number> = {
-  "Past week": 7,
-  "Past month": 30,
-};
+const WORK_MODES = ["Remote", "Hybrid", "On-site"];
+const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Internship"];
+const SALARY_FLOORS = [300000, 600000, 1200000, 2000000];
+const POSTED: { key: Exclude<Posted, null>; label: string; days: number }[] = [
+  { key: "day", label: "Last 24 hours", days: 1 },
+  { key: "week", label: "This week", days: 7 },
+  { key: "month", label: "This month", days: 30 },
+];
+const PAGE = 20;
 
-const daysAgo = (iso: string) =>
-  Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
+const lpa = (n: number) => `₹${n / 100000} LPA and up`;
+const ageDays = (iso: string) => (Date.now() - new Date(iso).getTime()) / 86_400_000;
 
+type FacetKey = keyof Facets;
+
+/** Does a job pass every filter (and the search), optionally ignoring one? */
+function passes(job: Job, f: Facets, query: string, skip?: FacetKey | "query") {
+  if (skip !== "work_location" && f.work_location.length && !f.work_location.includes(job.work_location)) return false;
+  if (skip !== "job_type" && f.job_type.length && !f.job_type.includes(job.job_type)) return false;
+  if (skip !== "location" && f.location.length && !f.location.includes(job.location ?? "")) return false;
+  if (skip !== "role" && f.role && job.role !== f.role) return false;
+  if (skip !== "company" && f.company && job.company_name !== f.company) return false;
+  if (skip !== "minSalary" && f.minSalary && Number(job.salary || 0) < f.minSalary) return false;
+  if (skip !== "multiOpening" && f.multiOpening && Number(job.openings) < 2) return false;
+  if (skip !== "posted" && f.posted) {
+    const w = POSTED.find((p) => p.key === f.posted)!;
+    if (ageDays(job.created_at) > w.days) return false;
+  }
+  const q = query.trim().toLowerCase();
+  if (skip !== "query" && q) {
+    const hay = `${job.title} ${job.company_name} ${job.role} ${job.location} ${job.description ?? ""}`.toLowerCase();
+    if (!hay.includes(q)) return false;
+  }
+  return true;
+}
+
+/** Every active filter as a removable chip, with what removing it does. */
+function activeFilters(f: Facets, setF: React.Dispatch<React.SetStateAction<Facets>>) {
+  const out: { id: string; label: string; key: FacetKey; remove: () => void; relax: Facets }[] = [];
+  const add = (id: string, label: string, key: FacetKey, relax: Facets) =>
+    out.push({ id, label, key, relax, remove: () => setF(relax) });
+  for (const key of ["work_location", "job_type", "location"] as const)
+    for (const v of f[key]) add(`${key}:${v}`, v, key, { ...f, [key]: f[key].filter((x) => x !== v) });
+  if (f.role) add("role", f.role, "role", { ...f, role: null });
+  if (f.company) add("company", f.company, "company", { ...f, company: null });
+  if (f.minSalary) add("minSalary", lpa(f.minSalary), "minSalary", { ...f, minSalary: null });
+  if (f.multiOpening) add("multiOpening", "2 or more openings", "multiOpening", { ...f, multiOpening: false });
+  if (f.posted) add("posted", POSTED.find((p) => p.key === f.posted)!.label, "posted", { ...f, posted: null });
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Page
+ * ------------------------------------------------------------------ */
 export default function JobsPage() {
+  return (
+    <Suspense fallback={<ListingSkeleton />}>
+      <Listing />
+    </Suspense>
+  );
+}
+
+function Listing() {
   const { isAuth, loading: authLoading, applications } = useAppData();
   const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
 
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<"newest" | "salary">("newest");
-  const [facets, setFacets] = useState<Facets>(EMPTY);
-  const [railOpen, setRailOpen] = useState(false);
+  // Browsing needs an account; come back here, search intact, after signing in.
+  useEffect(() => {
+    if (!isAuth && !authLoading) {
+      const here = pathname + (params.toString() ? `?${params}` : "");
+      router.replace(`/login?next=${encodeURIComponent(here)}`);
+    }
+  }, [isAuth, authLoading, router, pathname, params]);
+
+  const [jobs, setJobs] = useState<Job[] | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [query, setQuery] = useState(params.get("q") ?? "");
+  const [draft, setDraft] = useState(params.get("q") ?? "");
+  const [facets, setFacets] = useState<Facets>(() => ({
+    ...EMPTY,
+    location: params.get("city") ? [params.get("city")!] : [],
+  }));
+  const [sort, setSort] = useState<"newest" | "high" | "low">("newest");
+  const [shown, setShown] = useState(PAGE);
+  const [moreCities, setMoreCities] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const { data } = await axios.get(`${job_service}/api/job/all`);
+      setJobs(data);
+      setFailed(false);
+    } catch {
+      setFailed(true);
+    }
+  }, []);
 
   useEffect(() => {
-    if (!isAuth && !authLoading) router.push("/login");
-  }, [isAuth, authLoading, router]);
+    if (isAuth) void load();
+  }, [isAuth, load]);
 
-  useEffect(() => {
-    if (!isAuth) return;
-    (async () => {
-      setLoading(true);
-      try {
-        const { data } = await axios.get(`${job_service}/api/job/all`, {
-          headers: { Authorization: `Bearer ${Cookies.get("token")}` },
-        });
-        setJobs(data);
-      } catch {
-        setJobs([]);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, [isAuth]);
+  // A new filter set starts from the top of the list again.
+  useEffect(() => setShown(PAGE), [facets, query, sort]);
 
-  const appliedJobIds = useMemo(
-    () => new Set((applications || []).map((a) => a.job_id)),
-    [applications]
+  const applicationFor = useMemo(() => {
+    const m = new Map<number, NonNullable<typeof applications>[number]>();
+    for (const a of applications ?? []) m.set(a.job_id, a);
+    return m;
+  }, [applications]);
+
+  const all = jobs ?? [];
+  const results = useMemo(() => {
+    const list = all.filter((j) => passes(j, facets, query));
+    return list.sort((a, b) =>
+      sort === "high"
+        ? Number(b.salary || 0) - Number(a.salary || 0)
+        : sort === "low"
+          ? Number(a.salary || 0) - Number(b.salary || 0)
+          : +new Date(b.created_at) - +new Date(a.created_at)
+    );
+  }, [all, facets, query, sort]);
+
+  /** How many roles a value would show, given every other filter. */
+  const count = (key: FacetKey, test: (j: Job) => boolean) =>
+    all.filter((j) => passes(j, facets, query, key) && test(j)).length;
+
+  const uniq = (vals: (string | null | undefined)[]) =>
+    [...new Set(vals.filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b));
+  const cities = uniq(all.map((j) => j.location)).sort(
+    (a, b) => count("location", (j) => j.location === b) - count("location", (j) => j.location === a)
   );
+  const roles = uniq(all.map((j) => j.role));
+  const companies = uniq(all.map((j) => j.company_name));
 
-  /* Filtering runs on the client: with this dataset it is instant, and the
-     rail needs counts over the whole set anyway. The list swaps without
-     animation so the eye keeps its place. */
-  const toggle = (key: keyof Omit<Facets, "openings" | "posted">, value: string) =>
-    setFacets((f) => {
-      const list = f[key];
-      return {
-        ...f,
-        [key]: list.includes(value)
-          ? list.filter((v) => v !== value)
-          : [...list, value],
-      };
-    });
-
-  const matches = (job: Job, skip?: keyof Facets) => {
-    const f = facets;
-    if (skip !== "work_location" && f.work_location.length && !f.work_location.includes(job.work_location)) return false;
-    if (skip !== "job_type" && f.job_type.length && !f.job_type.includes(job.job_type)) return false;
-    if (skip !== "location" && f.location.length && !f.location.includes(job.location || "")) return false;
-    if (skip !== "role" && f.role.length && !f.role.includes(job.role)) return false;
-    if (skip !== "company" && f.company.length && !f.company.includes(job.company_name)) return false;
-    if (skip !== "openings" && f.openings) {
-      const min = Number(f.openings.replace("+", ""));
-      if (Number(job.openings) < min) return false;
-    }
-    if (skip !== "posted" && f.posted) {
-      if (daysAgo(job.created_at) > POSTED_WINDOWS[f.posted]) return false;
-    }
-    if (query.trim()) {
-      const q = query.toLowerCase();
-      const hay = `${job.title} ${job.company_name} ${job.role} ${job.location}`.toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
+  const chips = activeFilters(facets, setFacets);
+  const q = query.trim();
+  const clearAll = () => {
+    setFacets(EMPTY);
+    setQuery("");
+    setDraft("");
   };
 
-  const results = useMemo(() => {
-    const list = jobs.filter((j) => matches(j));
-    return [...list].sort((a, b) =>
-      sort === "salary"
-        ? Number(b.salary || 0) - Number(a.salary || 0)
-        : new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [jobs, facets, query, sort]);
+  const toggle = (key: "work_location" | "job_type" | "location", v: string) =>
+    setFacets((f) => ({ ...f, [key]: f[key].includes(v) ? f[key].filter((x) => x !== v) : [...f[key], v] }));
 
-  /** Count for a facet value, computed as if that facet weren't applied. */
-  const countFor = (key: keyof Facets, value: string) =>
-    jobs.filter((j) => {
-      if (!matches(j, key)) return false;
-      if (key === "work_location") return j.work_location === value;
-      if (key === "job_type") return j.job_type === value;
-      if (key === "location") return j.location === value;
-      if (key === "role") return j.role === value;
-      if (key === "company") return j.company_name === value;
-      return false;
-    }).length;
+  if (authLoading || !isAuth) return <ListingSkeleton />;
 
-  const uniq = (vals: (string | null)[]) =>
-    [...new Set(vals.filter(Boolean) as string[])].sort();
+  const loading = jobs === null && !failed;
+  const offline = failed;
 
-  const activeCount =
-    facets.work_location.length +
-    facets.job_type.length +
-    facets.location.length +
-    facets.role.length +
-    facets.company.length +
-    (facets.openings ? 1 : 0) +
-    (facets.posted ? 1 : 0);
-
-  /* When nothing matches, name the filter that is doing the blocking — a
-     dead end is a design failure, not a data state. */
-  const blockingFilter = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (results.length || (!activeCount && !q)) return null;
-
-    /** Count matches under a given facet set + query. */
-    const countUnder = (f: Facets, search: string) =>
-      jobs.filter((j) => {
-        if (f.work_location.length && !f.work_location.includes(j.work_location)) return false;
-        if (f.job_type.length && !f.job_type.includes(j.job_type)) return false;
-        if (f.location.length && !f.location.includes(j.location || "")) return false;
-        if (f.role.length && !f.role.includes(j.role)) return false;
-        if (f.company.length && !f.company.includes(j.company_name)) return false;
-        if (f.openings && Number(j.openings) < Number(f.openings.replace("+", ""))) return false;
-        if (f.posted && daysAgo(j.created_at) > POSTED_WINDOWS[f.posted]) return false;
-        if (search) {
-          const hay = `${j.title} ${j.company_name} ${j.role} ${j.location}`.toLowerCase();
-          if (!hay.includes(search)) return false;
-        }
-        return true;
-      }).length;
-
-    // The search box is a filter too — and usually the real blocker. Test it
-    // first so we never tell someone to drop a facet that wouldn't help.
-    if (q) {
-      const n = countUnder(facets, "");
-      if (n > 0) return { key: "search" as const, label: `“${query.trim()}”`, n };
-    }
-
-    const keys: (keyof Facets)[] = ["work_location", "job_type", "location", "role", "company", "openings", "posted"];
-    for (const key of keys) {
-      const relaxed = { ...facets, [key]: Array.isArray(facets[key]) ? [] : null } as Facets;
-      const n = countUnder(relaxed, q);
-      if (n > 0) {
-        const label = Array.isArray(facets[key])
-          ? (facets[key] as string[]).join(", ")
-          : String(facets[key]);
-        return { key, label, n };
-      }
-    }
-    return null;
-  }, [results.length, activeCount, facets, jobs, query]);
-
-  if (authLoading || !isAuth) return null;
-
-  return (
-    <div className="mx-auto max-w-[1200px] px-4 py-8 md:px-6 md:py-10">
-      <header className="mb-6">
-        <h1 className="t-h1">Open roles</h1>
-        <p className="t-body-sm mt-1">
-          Every posting on JobQ, newest first. Filters apply as you set them.
-        </p>
-      </header>
-
-      {/* search band */}
-      <div className="mb-6 flex gap-2 border border-hairline bg-raised p-2">
-        <div className="relative flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-ink-3" />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by title, company or role"
-            aria-label="Search roles"
-            className="h-10 w-full border border-line-strong bg-sunken pl-9 pr-3 text-[15px] placeholder:text-ink-4 focus-visible:border-steel focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-steel/40"
-          />
-        </div>
-        <button
-          onClick={() => setRailOpen((v) => !v)}
-          className="inline-flex items-center gap-2 border border-line-strong px-4 font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)] lg:hidden"
-        >
-          <SlidersHorizontal className="size-4" />
-          Filters
-          {activeCount > 0 && <span className="numeric">{activeCount}</span>}
-        </button>
-      </div>
-
-      <div className="flex gap-6">
-        {/* ---------------- filter rail ---------------- */}
-        <aside
-          className={cn(
-            "w-[240px] shrink-0 lg:block",
-            railOpen ? "block" : "hidden"
-          )}
-        >
-          <div className="sticky top-24 border border-hairline bg-raised">
-            <div className="flex items-center justify-between border-b border-hairline px-4 py-3">
-              <span className="t-overline">Filters</span>
-              {activeCount > 0 && (
-                <button
-                  onClick={() => setFacets(EMPTY)}
-                  className="text-[13px] text-steel-700 hover:underline"
-                >
-                  Clear all
+  /* ---------------- filter controls, shared by rail and sheet ---------------- */
+  const rail = (mode: "rail" | "sheet") => {
+    const Opt = mode === "rail" ? RailOption : ChipOption;
+    const groupCls = mode === "rail" ? "flex flex-col" : "flex flex-wrap gap-2";
+    const n = (k: FacetKey, t: (j: Job) => boolean) => (offline ? undefined : count(k, t));
+    const visibleCities = mode === "sheet" || moreCities ? cities : cities.slice(0, 4);
+    return (
+      <>
+        <FilterGroup title="Work mode" mode={mode}>
+          <div className={groupCls}>
+            {WORK_MODES.map((v) => (
+              <Opt key={v} label={v} count={n("work_location", (j) => j.work_location === v)}
+                checked={facets.work_location.includes(v)} onChange={() => toggle("work_location", v)} />
+            ))}
+          </div>
+        </FilterGroup>
+        <FilterGroup title="Job type" mode={mode}>
+          <div className={groupCls}>
+            {JOB_TYPES.map((v) => (
+              <Opt key={v} label={v} count={n("job_type", (j) => j.job_type === v)}
+                checked={facets.job_type.includes(v)} onChange={() => toggle("job_type", v)} />
+            ))}
+          </div>
+        </FilterGroup>
+        {cities.length > 0 && (
+          <FilterGroup title="City" mode={mode}>
+            <div className={groupCls}>
+              {visibleCities.map((v) => (
+                <Opt key={v} label={v} count={n("location", (j) => j.location === v)}
+                  checked={facets.location.includes(v)} onChange={() => toggle("location", v)} />
+              ))}
+              {mode === "rail" && cities.length > 4 && (
+                <button onClick={() => setMoreCities((m) => !m)}
+                  className="min-h-10 self-start font-bold text-red-deep hover:underline">
+                  {moreCities ? "Show fewer" : `Show ${cities.length - 4} more`}
                 </button>
               )}
             </div>
-
-            <div className="max-h-[calc(100vh-14rem)] overflow-y-auto">
-              <FacetGroup label="Work location">
-                {["Remote", "Hybrid", "On-site"].map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    count={countFor("work_location", v)}
-                    checked={facets.work_location.includes(v)}
-                    onChange={() => toggle("work_location", v)}
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Job type">
-                {["Full-time", "Part-time", "Contract", "Internship"].map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    count={countFor("job_type", v)}
-                    checked={facets.job_type.includes(v)}
-                    onChange={() => toggle("job_type", v)}
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Location">
-                {uniq(jobs.map((j) => j.location)).map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    count={countFor("location", v)}
-                    checked={facets.location.includes(v)}
-                    onChange={() => toggle("location", v)}
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Role">
-                {uniq(jobs.map((j) => j.role)).map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    count={countFor("role", v)}
-                    checked={facets.role.includes(v)}
-                    onChange={() => toggle("role", v)}
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Company">
-                {uniq(jobs.map((j) => j.company_name)).map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    count={countFor("company", v)}
-                    checked={facets.company.includes(v)}
-                    onChange={() => toggle("company", v)}
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Openings">
-                {["2+", "3+"].map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    radio
-                    checked={facets.openings === v}
-                    onChange={() =>
-                      setFacets((f) => ({ ...f, openings: f.openings === v ? null : v }))
-                    }
-                  />
-                ))}
-              </FacetGroup>
-
-              <FacetGroup label="Posted" last>
-                {Object.keys(POSTED_WINDOWS).map((v) => (
-                  <FacetRow
-                    key={v}
-                    label={v}
-                    radio
-                    checked={facets.posted === v}
-                    onChange={() =>
-                      setFacets((f) => ({ ...f, posted: f.posted === v ? null : v }))
-                    }
-                  />
-                ))}
-              </FacetGroup>
-            </div>
+          </FilterGroup>
+        )}
+        <div className={cn("flex flex-col gap-3", mode === "rail" ? "border-b-[1.5px] border-line px-[18px] py-3.5" : "px-4 py-3")}>
+          {mode === "rail" && (
+            <>
+              <SelectField label="Role" value={facets.role ?? ""} onChange={(v) => setFacets((f) => ({ ...f, role: v || null }))}
+                options={[["", "Any role"], ...roles.map((r) => [r, r] as [string, string])]} />
+              <SelectField label="Company" value={facets.company ?? ""} onChange={(v) => setFacets((f) => ({ ...f, company: v || null }))}
+                options={[["", "Any company"], ...companies.map((c) => [c, c] as [string, string])]} />
+            </>
+          )}
+          <SelectField label="Minimum salary" value={String(facets.minSalary ?? "")} active={!!facets.minSalary}
+            onChange={(v) => setFacets((f) => ({ ...f, minSalary: v ? Number(v) : null }))}
+            options={[["", "Any"], ...SALARY_FLOORS.map((s) => [String(s), lpa(s)] as [string, string])]} />
+          {mode === "rail" && (
+            <RailOption label="2 or more openings" count={n("multiOpening", (j) => Number(j.openings) >= 2)}
+              checked={facets.multiOpening} onChange={() => setFacets((f) => ({ ...f, multiOpening: !f.multiOpening }))} />
+          )}
+        </div>
+        <FilterGroup title="Date posted" mode={mode} last>
+          <div className={groupCls}>
+            {POSTED.map((p) => (
+              <Opt key={p.key} radio label={p.label} count={n("posted", (j) => ageDays(j.created_at) <= p.days)}
+                checked={facets.posted === p.key} onChange={() => setFacets((f) => ({ ...f, posted: p.key }))} />
+            ))}
+            <Opt radio label="Any time" count={n("posted", () => true)}
+              checked={!facets.posted} onChange={() => setFacets((f) => ({ ...f, posted: null }))} />
           </div>
-        </aside>
+        </FilterGroup>
+      </>
+    );
+  };
 
-        {/* ---------------- results ---------------- */}
-        <section className="min-w-0 flex-1">
-          <div className="mb-3 flex flex-wrap items-center gap-3">
-            <p className="t-body-sm">
-              {loading ? (
-                "Loading roles…"
-              ) : (
-                <>
-                  <span className="numeric font-medium text-ink">{results.length}</span>{" "}
-                  {results.length === 1 ? "role" : "roles"}
-                  {activeCount > 0 && <> match your filters</>} ·{" "}
-                  <span className="numeric">{jobs.length}</span> open in total
-                </>
-              )}
-            </p>
-
-            <label className="ml-auto flex items-center gap-2 text-[13px] text-ink-3">
-              Sort
+  return (
+    <>
+      {/* ---------------- search band ---------------- */}
+      <section className="border-b-2 border-ink bg-paper-deep">
+        <div className="container-app flex flex-col gap-3 py-4 md:py-7">
+          <h1 className="sr-only">Find jobs</h1>
+          <form
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setQuery(draft);
+            }}
+            className="flex flex-wrap overflow-hidden rounded-[10px] border-2 border-ink bg-card md:shadow-hard"
+          >
+            <label className="flex min-h-[52px] basis-full items-center gap-2.5 px-4 md:min-h-14 md:flex-[3_1_320px] md:px-[18px]">
+              <Search className="size-5 flex-none text-ink-muted" strokeWidth={2.25} aria-hidden />
+              <span className="sr-only">Search jobs</span>
+              <input
+                value={draft}
+                onChange={(e) => {
+                  setDraft(e.target.value);
+                  if (!e.target.value) setQuery("");
+                }}
+                placeholder="Job title, skill or company"
+                className="w-full bg-transparent text-[17px] text-ink placeholder:text-ink-muted"
+              />
+            </label>
+            <label className="hidden min-h-14 flex-[1_1_200px] items-center gap-2 border-l-2 border-ink px-[18px] md:flex">
+              <MapPin className="size-[18px] flex-none text-ink-muted" strokeWidth={2.25} aria-hidden />
+              <span className="sr-only">City</span>
               <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as "newest" | "salary")}
-                className="h-8 border border-line-strong bg-sunken px-2 text-[13px] text-ink-2 focus-visible:border-steel focus-visible:outline-none"
+                value={facets.location.length === 1 ? facets.location[0] : ""}
+                onChange={(e) => setFacets((f) => ({ ...f, location: e.target.value ? [e.target.value] : [] }))}
+                className="w-full bg-transparent text-[17px] text-ink"
               >
-                <option value="newest">Newest first</option>
-                <option value="salary">Highest salary</option>
+                <option value="">Any city</option>
+                {cities.map((c) => (
+                  <option key={c}>{c}</option>
+                ))}
               </select>
             </label>
+            <button type="submit" className="hidden min-h-14 border-l-2 border-ink bg-red px-8 text-[17px] font-bold text-white hover:bg-red-deep md:block">
+              Search
+            </button>
+          </form>
+
+          {/* phones: filters button and sort share a row under the search */}
+          <div className="flex gap-3 md:hidden">
+            <button
+              onClick={() => setSheetOpen(true)}
+              className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-[10px] border-2 border-ink bg-ink font-bold text-paper"
+            >
+              <SlidersHorizontal className="size-[18px]" strokeWidth={2.5} aria-hidden />
+              Filters
+              {chips.length > 0 && (
+                <span className="grid size-[22px] place-items-center rounded-full bg-gold text-[13px] text-ink">{chips.length}</span>
+              )}
+            </button>
+            <SortSelect value={sort} onChange={setSort} className="flex-1" />
           </div>
+        </div>
+      </section>
 
-          {/* active filter chips */}
-          {activeCount > 0 && (
-            <div className="mb-4 flex flex-wrap gap-1.5">
-              {(["work_location", "job_type", "location", "role", "company"] as const).flatMap(
-                (key) =>
-                  facets[key].map((v) => (
-                    <Chip key={key + v} label={v} onRemove={() => toggle(key, v)} />
-                  ))
-              )}
-              {facets.openings && (
-                <Chip
-                  label={`${facets.openings} openings`}
-                  onRemove={() => setFacets((f) => ({ ...f, openings: null }))}
-                />
-              )}
-              {facets.posted && (
-                <Chip
-                  label={facets.posted}
-                  onRemove={() => setFacets((f) => ({ ...f, posted: null }))}
-                />
-              )}
-            </div>
-          )}
-
+      <div className="container-app flex items-start gap-8 pt-5 pb-16 md:pt-7">
+        {/* ---------------- filter rail (desktop) ---------------- */}
+        <aside aria-label="Filters" className="hidden w-[300px] flex-none overflow-hidden rounded-[10px] border-2 border-ink bg-card lg:block">
+          <div className="flex items-center justify-between border-b-2 border-ink px-[18px] py-3.5">
+            <h2 className="font-display text-[20px] font-extrabold">Filters</h2>
+            {chips.length > 0 && (
+              <button onClick={() => setFacets(EMPTY)} className="min-h-11 px-1 font-bold text-red-deep underline">
+                Clear all
+              </button>
+            )}
+          </div>
           {loading ? (
-            <div className="space-y-3">
-              <JobRowSkeleton />
-              <JobRowSkeleton />
-              <JobRowSkeleton />
-            </div>
-          ) : results.length === 0 ? (
-            <div className="border border-hairline bg-raised px-6 py-12 text-center">
-              <h2 className="t-h3">
-                {jobs.length === 0 ? "No roles are open yet" : "No roles match these filters"}
-              </h2>
-              <p className="t-body-sm mx-auto mt-2 max-w-md">
-                {jobs.length === 0 ? (
-                  "JobQ is early — new postings land most weeks."
-                ) : blockingFilter ? (
-                  <>
-                    <span className="numeric">{jobs.length}</span> roles are open right now.
-                    Dropping <span className="font-medium text-ink">{blockingFilter.label}</span>{" "}
-                    brings back <span className="numeric">{blockingFilter.n}</span> of them.
-                  </>
-                ) : (
-                  <>
-                    <span className="numeric">{jobs.length}</span> roles are open right now.
-                  </>
-                )}
-              </p>
-              {(activeCount > 0 || query.trim()) && (
-                <div className="mt-5 flex flex-wrap justify-center gap-2">
-                  <button
-                    onClick={() => {
-                      setFacets(EMPTY);
-                      setQuery("");
-                    }}
-                    className="border border-primary bg-primary px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-white hover:bg-steel-800"
-                  >
-                    Clear all filters
-                  </button>
-                  {blockingFilter && (
-                    <button
-                      onClick={() => {
-                        if (blockingFilter.key === "search") {
-                          setQuery("");
-                          return;
-                        }
-                        setFacets((f) => ({
-                          ...f,
-                          [blockingFilter.key]: Array.isArray(
-                            f[blockingFilter.key as keyof Facets]
-                          )
-                            ? []
-                            : null,
-                        }));
-                      }}
-                      className="border border-line-strong px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-                    >
-                      {blockingFilter.key === "search" ? "Clear search" : `Drop ${blockingFilter.label}`}
-                    </button>
-                  )}
-                </div>
+            <div className="flex flex-col gap-3 p-[18px]" aria-hidden>
+              {[60, 80, 70, 75, 0, 55, 85, 65].map((w, i) =>
+                w ? <Skeleton key={i} className="h-3.5" style={{ width: `${w}%` }} /> : <div key={i} className="h-3" />
               )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {results.map((job) => (
-                <JobRow
-                  key={job.job_id}
-                  job={job}
-                  applied={appliedJobIds.has(job.job_id)}
-                />
-              ))}
+            <>
+              {rail("rail")}
+              {offline && <p className="t-help px-[18px] pb-4">Counts come back when we reconnect.</p>}
+            </>
+          )}
+        </aside>
 
-              {/* Sparse is the real launch state: rather than leave a grid
-                  half-empty, offer the alert. */}
-              {results.length <= 2 && jobs.length > 0 && (
-                <div className="border border-hairline bg-raised px-6 py-8 text-center">
-                  <p className="t-body-sm mx-auto max-w-md">
-                    JobQ is early — new postings land most weeks. We&apos;ll email you
-                    when another matching role opens.
-                  </p>
-                  <Link
-                    href="/account"
-                    className="mt-4 inline-block border border-line-strong px-4 py-2 font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-                  >
-                    Alert me
-                  </Link>
+        {/* ---------------- results ---------------- */}
+        <section aria-label="Results" className="flex min-w-0 flex-1 flex-col gap-4">
+          {loading ? (
+            <>
+              <Skeleton className="h-7 w-48" />
+              <ul className="flex flex-col gap-3">
+                {[0, 1, 2, 3].map((i) => <JobRowSkeleton key={i} />)}
+              </ul>
+            </>
+          ) : offline ? (
+            <div className="rounded-[10px] border-2 border-ink bg-paper-deep">
+              <OfflineState onRetry={load} variant="full" className="!py-10" />
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[17px]" aria-live="polite">
+                  <b className="font-display text-[24px] font-extrabold">
+                    {results.length} {results.length === 1 ? "role" : "roles"}
+                  </b>
+                  {q && <> for “{q}”</>}
+                </p>
+                <label className="hidden items-center gap-2.5 font-bold md:flex">
+                  Sort by
+                  <SortSelect value={sort} onChange={setSort} />
+                </label>
+              </div>
+
+              {(chips.length > 0 || q) && (
+                <div className="flex flex-wrap items-center gap-2">
+                  {q && <FilterChip label={`“${q}”`} onRemove={() => { setQuery(""); setDraft(""); }} />}
+                  {chips.map((c) => <FilterChip key={c.id} label={c.label} onRemove={c.remove} />)}
+                  <button onClick={clearAll} className="min-h-9 font-bold text-red-deep underline">
+                    Clear all
+                  </button>
                 </div>
               )}
-            </div>
+
+              {results.length === 0 ? (
+                all.length === 0 ? (
+                  <NothingOpen />
+                ) : (
+                  <NoMatches
+                    options={[
+                      ...(q ? [{ id: "q", label: `“${q}”`, n: all.filter((j) => passes(j, facets, query, "query")).length, remove: () => { setQuery(""); setDraft(""); } }] : []),
+                      ...chips.map((c) => ({ id: c.id, label: c.label, n: all.filter((j) => passes(j, c.relax, query)).length, remove: c.remove })),
+                    ]}
+                    onClearAll={clearAll}
+                  />
+                )
+              ) : (
+                <>
+                  <ul className="flex flex-col gap-3">
+                    {results.slice(0, shown).map((job) => (
+                      <JobRow key={job.job_id} job={job} application={applicationFor.get(job.job_id)} />
+                    ))}
+                  </ul>
+                  {results.length > shown && (
+                    <div className="flex justify-center pt-3">
+                      <Button variant="secondary" className="shadow-hard-sm" onClick={() => setShown((s) => s + PAGE)}>
+                        Show {Math.min(PAGE, results.length - shown)} more roles
+                      </Button>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           )}
         </section>
       </div>
+
+      {/* ---------------- filters sheet (phones) ---------------- */}
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        <SheetContent
+          title="Filters"
+          className="lg:hidden"
+          headerAction={
+            chips.length > 0 && (
+              <button onClick={() => setFacets(EMPTY)} className="min-h-11 px-2 font-bold text-red-deep underline">
+                Clear all
+              </button>
+            )
+          }
+        >
+          <div className="border-t-2 border-ink pb-4">{!loading && rail("sheet")}</div>
+          <div className="sticky bottom-0 border-t-2 border-ink bg-paper p-4">
+            <Button className="min-h-[54px] w-full" onClick={() => setSheetOpen(false)}>
+              Apply filters · {results.length} {results.length === 1 ? "role" : "roles"}
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Pieces
+ * ------------------------------------------------------------------ */
+function ListingSkeleton() {
+  return (
+    <div className="container-app flex flex-col gap-3 py-8" aria-label="Loading roles" role="status">
+      {[0, 1, 2].map((i) => <Skeleton key={i} className="h-[96px] rounded-[10px]" />)}
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-
-function FacetGroup({
-  label,
-  children,
-  last,
-}: {
-  label: string;
-  children: React.ReactNode;
-  last?: boolean;
-}) {
+function FilterGroup({ title, mode, last, children }: { title: string; mode: "rail" | "sheet"; last?: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn("px-4 py-3", !last && "border-b border-hairline")}>
-      <p className="t-overline mb-2">{label}</p>
-      <div className="space-y-1">{children}</div>
-    </div>
+    <fieldset className={cn(mode === "rail" ? "px-[18px] py-3.5" : "px-4 py-3", mode === "rail" && !last && "border-b-[1.5px] border-line")}>
+      <legend className="float-left mb-1 w-full font-bold">{title}</legend>
+      <div className="clear-both pt-1">{children}</div>
+    </fieldset>
   );
 }
 
-function FacetRow({
-  label,
-  count,
-  checked,
-  onChange,
-  radio,
-}: {
-  label: string;
-  count?: number;
-  checked: boolean;
-  onChange: () => void;
-  radio?: boolean;
-}) {
-  const disabled = count === 0 && !checked;
+type OptionProps = { label: string; count?: number; checked: boolean; onChange: () => void; radio?: boolean };
+
+/** Rail row: checkbox or radio, label, live count. Zero-count options dim but stay usable when on. */
+function RailOption({ label, count, checked, onChange, radio }: OptionProps) {
+  const dead = count === 0 && !checked;
   return (
-    <label
-      className={cn(
-        "flex cursor-pointer items-center gap-2 text-[14px]",
-        disabled && "cursor-default opacity-45"
-      )}
-    >
-      <input
-        type={radio ? "radio" : "checkbox"}
-        checked={checked}
-        onChange={onChange}
-        disabled={disabled}
-        className="size-3.5 accent-steel-700"
-      />
-      <span className={cn("flex-1 truncate", checked ? "text-ink" : "text-ink-2")}>
-        {label}
-      </span>
-      {count !== undefined && (
-        <span className="numeric text-[12px] text-ink-3">{count}</span>
-      )}
+    <label className={cn("flex min-h-10 cursor-pointer items-center gap-2.5", dead && "cursor-default opacity-50")}>
+      <input type={radio ? "radio" : "checkbox"} checked={checked} onChange={onChange} disabled={dead} />
+      <span className="flex-1">{label}</span>
+      <span className="text-ink-muted tabular-nums">{count === undefined ? "·" : count}</span>
     </label>
   );
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+/** Sheet option: a toggle chip with its count. */
+function ChipOption({ label, count, checked, onChange }: OptionProps) {
+  const dead = count === 0 && !checked;
   return (
-    <span className="inline-flex items-center gap-1 border border-steel-200 bg-steel-100 py-1 pl-2 pr-1 text-[13px] text-steel-800">
+    <button
+      type="button"
+      role={undefined}
+      aria-pressed={checked}
+      onClick={onChange}
+      disabled={dead}
+      className={cn(
+        "inline-flex min-h-11 items-center gap-1.5 rounded-[10px] border-2 border-ink px-3.5 font-bold",
+        checked ? "bg-ink text-paper" : "bg-card text-ink",
+        dead && "opacity-50"
+      )}
+    >
       {label}
-      <button
-        onClick={onRemove}
-        aria-label={`Remove ${label} filter`}
-        className="p-0.5 hover:bg-steel-200"
+      {count !== undefined && <span className={cn("font-normal tabular-nums", checked ? "text-paper/80" : "text-ink-muted")}>{count}</span>}
+    </button>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  active,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  options: [string, string][];
+  active?: boolean;
+}) {
+  return (
+    <label className="flex flex-col gap-1.5 font-bold">
+      {label}
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={cn("min-h-11 rounded-[10px] border-2 bg-card px-3 font-normal text-ink", active ? "border-red" : "border-ink")}
       >
-        <X className="size-3" />
-      </button>
-    </span>
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function SortSelect({
+  value,
+  onChange,
+  className,
+}: {
+  value: "newest" | "high" | "low";
+  onChange: (v: "newest" | "high" | "low") => void;
+  className?: string;
+}) {
+  return (
+    <select
+      aria-label="Sort by"
+      value={value}
+      onChange={(e) => onChange(e.target.value as "newest" | "high" | "low")}
+      className={cn("min-h-11 rounded-[10px] border-2 border-ink bg-card px-3 font-bold text-ink md:min-w-[180px] md:font-normal", className)}
+    >
+      <option value="newest">Newest</option>
+      <option value="high">Salary: high to low</option>
+      <option value="low">Salary: low to high</option>
+    </select>
+  );
+}
+
+function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
+  return (
+    <button
+      onClick={onRemove}
+      aria-label={`Remove filter: ${label}`}
+      className="inline-flex min-h-9 items-center gap-2 rounded-[10px] bg-ink pr-2 pl-3 font-bold text-paper"
+    >
+      {label}
+      <X className="size-4" strokeWidth={2.75} aria-hidden />
+    </button>
+  );
+}
+
+/** Names each filter to loosen, with the number of roles it would bring back. */
+function NoMatches({
+  options,
+  onClearAll,
+}: {
+  options: { id: string; label: string; n: number; remove: () => void }[];
+  onClearAll: () => void;
+}) {
+  const useful = options.filter((o) => o.n > 0).sort((a, b) => b.n - a.n);
+  const many = options.length;
+  return (
+    <div className="grid items-center gap-6 rounded-[10px] border-2 border-ink bg-card p-6 md:grid-cols-[minmax(0,240px)_1fr] md:gap-10 md:p-10">
+      <TooNarrow label="" className="mx-auto w-[200px] md:w-full" />
+      <div className="flex flex-col gap-3">
+        <h2 className="t-h2">
+          {many === 1 ? "No roles match this filter." : many === 2 ? "No roles match both filters." : many === 3 ? "No roles match all three filters." : "No roles match these filters."}
+        </h2>
+        {useful.length > 0 ? (
+          <>
+            <p className="text-ink-soft">Loosen one of these to see more:</p>
+            <ul className="flex max-w-[460px] flex-col gap-2">
+              {useful.map((o) => (
+                <li key={o.id}>
+                  <button
+                    onClick={o.remove}
+                    className="flex min-h-12 w-full items-center justify-between gap-3 rounded-[10px] border-2 border-ink bg-card px-4 text-left hover:bg-paper-deep"
+                  >
+                    <span>
+                      Remove <b>{o.label}</b>
+                    </span>
+                    <span className="font-bold whitespace-nowrap text-red-deep">
+                      Show {o.n} {o.n === 1 ? "role" : "roles"}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <p className="text-ink-soft">No single change brings anything back. Clearing them all will.</p>
+        )}
+        <button onClick={onClearAll} className="mt-1 min-h-11 self-start font-bold underline">
+          Clear all filters
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function NothingOpen() {
+  return (
+    <div className="flex flex-col items-center gap-3 rounded-[10px] border-2 border-ink bg-card px-6 py-12 text-center">
+      <h2 className="t-h2">Nobody&apos;s hiring just this minute.</h2>
+      <p className="max-w-[30em] text-ink-soft">New roles go up most weeks. Check back soon.</p>
+    </div>
   );
 }

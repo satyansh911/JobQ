@@ -17,8 +17,13 @@ function SheetContent({
   className,
   children,
   title,
+  headerAction,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content> & { title: string }) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  title: string;
+  /** Sits beside the close button, e.g. "Clear all". */
+  headerAction?: React.ReactNode;
+}) {
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-[rgba(29,21,23,.55)] data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=closed]:animate-out data-[state=closed]:fade-out-0" />
@@ -34,7 +39,8 @@ function SheetContent({
           <span className="h-[5px] w-11 rounded-full bg-ink" />
         </div>
         <div className="flex items-center justify-between gap-3 px-4 pt-2 pb-3">
-          <DialogPrimitive.Title className="t-h3">{title}</DialogPrimitive.Title>
+          <DialogPrimitive.Title className="t-h3 flex-1">{title}</DialogPrimitive.Title>
+          {headerAction}
           <DialogPrimitive.Close
             className="grid size-11 place-items-center rounded-[10px] border-2 border-ink bg-card"
             aria-label="Close"

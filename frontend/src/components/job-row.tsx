@@ -2,150 +2,103 @@
 
 import React from "react";
 import Link from "next/link";
-import { Job } from "@/type";
-import { formatSalary, cn } from "@/lib/utils";
+import { Clock } from "lucide-react";
+import { Application, Job } from "@/type";
+import { cn } from "@/lib/utils";
+import { formatSalary, postedAgo, ticketNumber, STATUS_COPY } from "@/lib/format";
+import { buttonVariants } from "@/components/ui/button";
+import { CompanyLogo } from "@/components/jq/identity";
+import { Skeleton } from "@/components/jq/feedback";
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase();
-
-const postedLabel = (iso: string) => {
-  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000);
-  if (days <= 0) return "Posted today";
-  if (days === 1) return "Posted yesterday";
-  if (days < 30) return `Posted ${days} days ago`;
-  const months = Math.floor(days / 30);
-  return `Posted ${months} ${months === 1 ? "month" : "months"} ago`;
-};
-
-export function JobRow({ job, applied }: { job: Job; applied?: boolean }) {
-  const closed = !job.is_active;
-
+/** Where an application stands, as a dashed token in place of Apply. */
+function AppliedToken({ application }: { application: Application }) {
+  const tone =
+    application.status === "Hired"
+      ? "border-hired bg-hired-tint text-hired"
+      : application.status === "Rejected"
+        ? "border-rejected bg-rejected-tint text-rejected"
+        : "border-queue bg-queue-tint text-queue";
+  const copy = STATUS_COPY[application.status as keyof typeof STATUS_COPY] ?? STATUS_COPY.Submitted;
   return (
-    <article
+    <Link
+      href="/account"
       className={cn(
-        "border border-hairline bg-raised p-4 md:p-5",
-        closed && "opacity-75"
+        "inline-flex min-h-11 flex-none items-center gap-2 rounded-[10px] border-2 border-dashed px-3.5 font-bold no-underline",
+        tone
       )}
     >
-      <div className="flex gap-4">
-        {/* logo tile — square, per the system; avatars are the only circles */}
-        <div className="hidden size-11 shrink-0 items-center justify-center overflow-hidden border border-hairline bg-sunken sm:flex">
-          {job.company_logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={job.company_logo}
-              alt=""
-              className="size-full object-cover"
-            />
-          ) : (
-            <span className="font-[family-name:var(--font-display)] text-[15px] font-semibold text-ink-3">
-              {initials(job.company_name || "?")}
-            </span>
-          )}
-        </div>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
-            <h3 className="t-h3">
-              <Link href={`/jobs/${job.job_id}`} className="text-ink hover:text-steel-700">
-                {job.title}
-              </Link>
-            </h3>
-            {closed && (
-              <span className="status-bad mt-1 px-1.5 py-0.5 text-[12px] font-medium">
-                Closed
-              </span>
-            )}
-          </div>
-
-          <p className="t-body-sm mt-0.5">
-            <Link href={`/company/${job.company_id}`} className="text-ink-2 hover:text-steel-700">
-              {job.company_name}
-            </Link>
-          </p>
-
-          <ul className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink-3">
-            {job.location && <li>{job.location}</li>}
-            {job.location !== job.work_location && (
-              <>
-                <li aria-hidden>·</li>
-                <li>{job.work_location}</li>
-              </>
-            )}
-            <li aria-hidden>·</li>
-            <li>{job.job_type}</li>
-            {Number(job.openings) > 0 && (
-              <>
-                <li aria-hidden>·</li>
-                <li>
-                  <span className="numeric">{Math.round(Number(job.openings))}</span>{" "}
-                  {Math.round(Number(job.openings)) === 1 ? "opening" : "openings"}
-                </li>
-              </>
-            )}
-          </ul>
-
-          <p className="t-body-sm mt-2 line-clamp-2 max-w-[62ch] text-ink-2">
-            {job.description}
-          </p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <span className="numeric font-[family-name:var(--font-display)] text-[17px] font-semibold text-ink">
-              {formatSalary(job.salary)}
-            </span>
-            <span className="t-body-sm">{postedLabel(job.created_at)}</span>
-
-            <div className="ml-auto flex items-center gap-2">
-              <Link
-                href={`/jobs/${job.job_id}`}
-                className="border border-line-strong px-3 py-1.5 font-[family-name:var(--font-display)] text-[14px] font-semibold text-ink-2 hover:bg-[color-mix(in_srgb,var(--color-ink)_7%,transparent)]"
-              >
-                Details
-              </Link>
-              {applied ? (
-                <span className="status-ok px-3 py-1.5 text-[14px] font-medium">
-                  Applied
-                </span>
-              ) : (
-                !closed && (
-                  <Link
-                    href={`/jobs/${job.job_id}`}
-                    className="border border-primary bg-primary px-3 py-1.5 font-[family-name:var(--font-display)] text-[14px] font-semibold text-white hover:bg-steel-800"
-                  >
-                    Apply
-                  </Link>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </article>
+      {application.status === "Submitted" && <Clock className="size-4" strokeWidth={2.75} aria-hidden />}
+      {ticketNumber(application.application_id)} · {copy.seekerChip}
+    </Link>
   );
 }
 
-/** Same geometry as a real row, so nothing jumps when content arrives. */
+/**
+ * One posting in the listing. Compact: logo, title (wraps to two lines),
+ * company, plain meta, then salary and Apply — or the applied token.
+ */
+export function JobRow({ job, application }: { job: Job; application?: Application }) {
+  const openings = Math.round(Number(job.openings));
+  const meta = [
+    job.location,
+    job.location === job.work_location ? null : job.work_location,
+    job.job_type,
+    openings > 0 ? `${openings} ${openings === 1 ? "opening" : "openings"}` : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-[10px] border-2 border-ink bg-card px-4 py-4 md:px-5">
+      <CompanyLogo name={job.company_name} src={job.company_logo} size={52} />
+      <div className="flex min-w-0 flex-[1_1_240px] flex-col gap-1">
+        <Link
+          href={`/jobs/${job.job_id}`}
+          className="max-w-[26em] text-[18px] leading-[1.3] font-bold text-ink no-underline hover:underline"
+        >
+          {job.title}
+        </Link>
+        <span className="text-ink-muted">{job.company_name}</span>
+        <span className="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[14px] text-ink-soft">
+          {meta.map((m) => (
+            <span key={m}>{m}</span>
+          ))}
+        </span>
+      </div>
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-3 md:w-auto md:flex-nowrap md:justify-end">
+        <div className="whitespace-nowrap md:min-w-[110px] md:text-right">
+          <span className="font-display text-[20px] font-extrabold">{formatSalary(job.salary)}</span>
+          <span className="text-[13px] text-ink-muted md:block">
+            <span className="md:hidden"> · </span>
+            {postedAgo(job.created_at)}
+          </span>
+        </div>
+        {application ? (
+          <AppliedToken application={application} />
+        ) : (
+          <Link
+            href={`/jobs/${job.job_id}`}
+            aria-label={`Apply for ${job.title} at ${job.company_name}`}
+            className={cn(buttonVariants({ size: "sm" }), "shadow-hard-sm px-[22px]")}
+          >
+            Apply
+          </Link>
+        )}
+      </div>
+    </li>
+  );
+}
+
+/** Same height as a real row, so nothing jumps when results arrive. */
 export function JobRowSkeleton() {
   return (
-    <div className="border border-hairline bg-raised p-4 md:p-5">
-      <div className="flex gap-4">
-        <div className="skeleton hidden size-11 shrink-0 sm:block" />
-        <div className="min-w-0 flex-1 space-y-2">
-          <div className="skeleton h-5 w-2/5" />
-          <div className="skeleton h-3.5 w-1/4" />
-          <div className="skeleton h-3 w-1/2" />
-          <div className="skeleton h-3 w-4/5" />
-          <div className="flex items-center gap-3 pt-1">
-            <div className="skeleton h-5 w-20" />
-            <div className="skeleton h-4 w-28" />
-          </div>
-        </div>
+    <li className="flex items-center gap-4 rounded-[10px] border-2 border-ink bg-card px-5 py-4" aria-hidden>
+      <Skeleton className="size-[52px] flex-none rounded-[10px]" />
+      <div className="flex flex-1 flex-col gap-2">
+        <Skeleton className="h-4 w-1/2" />
+        <Skeleton className="h-3.5 w-1/4" />
+        <Skeleton className="h-3 w-2/5" />
       </div>
-    </div>
+      <Skeleton className="hidden h-5 w-20 md:block" />
+      <Skeleton className="h-11 w-24 rounded-[10px]" />
+    </li>
   );
 }
