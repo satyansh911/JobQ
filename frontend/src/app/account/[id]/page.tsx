@@ -27,6 +27,20 @@ const TICKET_TONE: Record<Status, string> = {
 };
 const TEXT_TONE: Record<Status, string> = { Submitted: "text-queue", Hired: "text-hired", Rejected: "text-rejected" };
 
+/** The first résumé link that still opens. Our own /uploads files can be checked; others are trusted. */
+async function firstWorking(urls: (string | null | undefined)[]) {
+  for (const url of urls) {
+    if (!url) continue;
+    if (!url.startsWith("/")) return url;
+    try {
+      if ((await fetch(url, { method: "HEAD" })).ok) return url;
+    } catch {
+      /* try the next one */
+    }
+  }
+  return null;
+}
+
 function applied(iso: string) {
   const d = new Date(iso);
   const today = new Date().toDateString() === d.toDateString();
@@ -88,6 +102,8 @@ function ApplicantProfile() {
   const [application, setApplication] = useState<Application | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Status | null>(null);
+  // undefined while checking; null when no file opens
+  const [resume, setResume] = useState<{ url: string; current: boolean } | null | undefined>(undefined);
 
   useEffect(() => {
     if (authLoading) return;
@@ -96,25 +112,32 @@ function ApplicantProfile() {
   }, [authLoading, isAuth, viewer, id, jobId, applicationId, router]);
 
   const load = useCallback(async () => {
+    let profile: User;
     try {
-      const { data } = await axios.get(`${user_service}/api/user/${id}`, authHeaders());
-      setPerson(data);
+      profile = (await axios.get<User>(`${user_service}/api/user/${id}`, authHeaders())).data;
+      setPerson(profile);
       setError(null);
     } catch (err) {
       setError(apiError(err, "This profile couldn't be loaded."));
       return;
     }
-    if (!jobId) return;
-    try {
-      const [j, apps] = await Promise.all([
-        axios.get(`${job_service}/api/job/${jobId}`),
-        axios.get<Application[]>(`${job_service}/api/job/application/${jobId}`, authHeaders()),
-      ]);
-      setJob(j.data);
-      setApplication(apps.data.find((a) => String(a.application_id) === applicationId || String(a.applicant_id) === id) ?? null);
-    } catch {
-      /* the profile still shows without the ticket */
+    let sent: Application | null = null;
+    if (jobId) {
+      try {
+        const [j, apps] = await Promise.all([
+          axios.get(`${job_service}/api/job/${jobId}`),
+          axios.get<Application[]>(`${job_service}/api/job/application/${jobId}`, authHeaders()),
+        ]);
+        sent = apps.data.find((a) => String(a.application_id) === applicationId || String(a.applicant_id) === id) ?? null;
+        setJob(j.data);
+        setApplication(sent);
+      } catch {
+        /* the profile still shows without the ticket */
+      }
     }
+    // Prefer the résumé sent with this application; fall back to the current one.
+    const url = await firstWorking([sent?.resume, profile.resume]);
+    setResume(url ? { url, current: !!sent?.resume && url !== sent.resume } : null);
   }, [id, jobId, applicationId]);
 
   useEffect(() => {
@@ -151,7 +174,6 @@ function ApplicantProfile() {
   const first = person.name.split(" ")[0];
   const priority = !!priorityUntil(person.subscription);
   const status = (application?.status ?? "Submitted") as Status;
-  const resume = application?.resume || person.resume;
   const skills = person.skills?.filter(Boolean) ?? [];
 
   return (
@@ -214,21 +236,30 @@ function ApplicantProfile() {
             <h2 className="font-display text-[26px] leading-none font-extrabold tracking-[-0.03em] md:text-[32px]">Résumé</h2>
             {resume && (
               <div className="flex gap-2.5 max-md:hidden">
-                <a href={resume} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "secondary", size: "sm" })}>Open in new tab</a>
-                <a href={resume} download className={buttonVariants({ variant: "secondary", size: "sm" })}>Download PDF</a>
+                <a href={resume?.url} target="_blank" rel="noopener noreferrer" className={buttonVariants({ variant: "secondary", size: "sm" })}>Open in new tab</a>
+                <a href={resume?.url} download className={buttonVariants({ variant: "secondary", size: "sm" })}>Download PDF</a>
               </div>
             )}
           </div>
-          {!resume ? (
-            <p className="rounded-[10px] border-2 border-dashed border-ink bg-paper-deep px-5 py-6 text-ink-soft">{first} hasn&apos;t uploaded a résumé.</p>
+          {resume === undefined ? (
+            <Skeleton className="h-[560px] rounded-[10px]" />
+          ) : !resume ? (
+            <p className="rounded-[10px] border-2 border-dashed border-ink bg-paper-deep px-5 py-6 text-ink-soft">
+              {application?.resume || person.resume
+                ? `${first}'s résumé file can't be opened any more. Ask them to upload it again.`
+                : `${first} hasn't uploaded a résumé.`}
+            </p>
           ) : (
             <>
-              <a href={resume} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3.5 rounded-[10px] border-2 border-ink bg-card px-4 py-3.5 text-ink no-underline md:hidden">
+              {resume.current && (
+                <p className="text-[15px] text-ink-soft">The file sent with this application is no longer available, so this is {first}&apos;s current résumé.</p>
+              )}
+              <a href={resume.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3.5 rounded-[10px] border-2 border-ink bg-card px-4 py-3.5 text-ink no-underline md:hidden">
                 <FileText className="size-6 flex-none" strokeWidth={2.25} aria-hidden />
                 <span><b className="block">{first}&apos;s résumé</b><span className="t-help">PDF · tap to open</span></span>
               </a>
               <div className="overflow-hidden rounded-[10px] border-2 border-ink bg-paper-deep p-3 max-md:hidden md:p-6">
-                <iframe src={`${resume}#view=FitH`} title={`${person.name}'s résumé`} className="h-[min(1000px,calc(100dvh-220px))] min-h-[560px] w-full rounded-[4px] border-[1.5px] border-line bg-white" />
+                <iframe src={`${resume.url}#view=FitH`} title={`${person.name}'s résumé`} className="h-[min(1000px,calc(100dvh-220px))] min-h-[560px] w-full rounded-[4px] border-[1.5px] border-line bg-white" />
               </div>
             </>
           )}

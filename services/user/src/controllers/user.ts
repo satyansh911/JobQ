@@ -155,8 +155,6 @@ export const updateResume = TryCatch(async (req: AuthenticatedRequest, res) => {
     throw new ErrorHandler(400, "No pdf file provided");
   }
 
-  const oldPublicId = user.resume_public_id;
-
   const fileBuffer = getBuffer(file);
 
   if (!fileBuffer || !fileBuffer.content) {
@@ -165,11 +163,10 @@ export const updateResume = TryCatch(async (req: AuthenticatedRequest, res) => {
 
   const { data: uploadResult } = await axios.post(
     `${process.env.UPLOAD_SERVICE}/api/utils/upload`,
-    {
-      buffer: fileBuffer.content,
-      public_id: oldPublicId,
-    },
-      { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
+    // No public_id: the old file must stay. Every application keeps a link
+    // to the résumé it was sent with, and replacing would break those.
+    { buffer: fileBuffer.content },
+    { headers: { "x-internal-token": process.env.INTERNAL_TOKEN ?? "" } }
   );
 
   const [updatedUser] = await sql`

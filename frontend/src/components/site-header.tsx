@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 
-type NavItem = { label: string; href: string; badge?: string };
+type NavItem = { label: string; href: string; badge?: string; also?: string[] };
 
 export const MARKETING_PATHS = ["/", "/about", "/subscribe"];
 
@@ -39,8 +39,9 @@ function Logo({ className }: { className?: string }) {
   );
 }
 
-function isActive(pathname: string, href: string) {
+function isActive(pathname: string, href: string, also: string[] = []) {
   if (href.includes("#")) return false;
+  if (also.some((prefix) => pathname.startsWith(prefix))) return true;
   return pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
 }
 
@@ -69,7 +70,8 @@ export const SiteHeader = () => {
       ]
     : role === "recruiter"
       ? [
-          { label: "My companies", href: "/account" },
+          // Company pages sit under My companies.
+          { label: "My companies", href: "/account", also: ["/company/"] },
           { label: "Jobs", href: "/jobs" },
         ]
       : [
@@ -104,7 +106,7 @@ export const SiteHeader = () => {
           {/* --- desktop nav --- */}
           <nav aria-label="Main" className="hidden flex-1 items-center gap-1 md:flex">
             {nav.map((item) => {
-              const active = isActive(pathname, item.href);
+              const active = isActive(pathname, item.href, item.also);
               return (
                 <Link
                   key={item.label}
@@ -233,7 +235,7 @@ export const SiteHeader = () => {
                     key={item.label}
                     href={item.href}
                     onClick={() => setMenuOpen(false)}
-                    aria-current={isActive(pathname, item.href) ? "page" : undefined}
+                    aria-current={isActive(pathname, item.href, item.also) ? "page" : undefined}
                     className="flex min-h-[60px] items-center justify-between gap-3 border-b-[1.5px] border-line px-1 font-display text-[26px] font-extrabold tracking-[-0.02em] text-ink no-underline"
                   >
                     {item.label}

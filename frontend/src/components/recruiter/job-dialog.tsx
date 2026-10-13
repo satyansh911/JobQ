@@ -228,7 +228,6 @@ export function JobDialog({
           <Input
             id="jb-title"
             value={title}
-            placeholder="Engineering Intern"
             onChange={(e) => {
               setTitle(e.target.value);
               clear("title");
@@ -250,7 +249,7 @@ export function JobDialog({
               }}
               disabled={busy}
             >
-              <SelectTrigger id="jb-role" {...inv("role")}>
+              <SelectTrigger id="jb-role" className="w-full" {...inv("role")}>
                 <SelectValue placeholder="Pick a role" />
               </SelectTrigger>
               <SelectContent>
@@ -309,7 +308,6 @@ export function JobDialog({
               clear("description");
             }}
             disabled={busy}
-            placeholder={"A short summary, then:\n\nWhat you'll do:\n- …\n\nWho we're looking for:\n- …"}
             {...inv("description")}
           />
           {errors.description ? (
@@ -330,7 +328,6 @@ export function JobDialog({
                 id="jb-salary"
                 inputMode="numeric"
                 className="pl-8 tabular-nums"
-                placeholder="6,00,000"
                 value={salary ? salaryNumber.toLocaleString("en-IN") : ""}
                 onChange={(e) => {
                   setSalary(e.target.value.replace(/\D/g, "").slice(0, 9));
@@ -365,7 +362,7 @@ export function JobDialog({
               }}
               disabled={busy}
             >
-              <SelectTrigger id="jb-city" {...inv("location")}>
+              <SelectTrigger id="jb-city" className="w-full" {...inv("location")}>
                 <SelectValue placeholder="Pick a city" />
               </SelectTrigger>
               <SelectContent>
