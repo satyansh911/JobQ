@@ -28,7 +28,7 @@ function CompanyCard({ c }: { c: CompanyWithCounts }) {
         <CompanyLogo name={c.name} src={c.logo} size={64} className="max-md:!size-12 max-md:!text-[17px]" />
         <div className="min-w-0">
           <h2 className="font-display text-[19px] leading-[1.1] font-extrabold tracking-[-0.02em] break-words md:text-[26px]">
-            <Link href={`/company/${c.company_id}`} className="text-ink no-underline max-md:after:absolute max-md:after:inset-0 md:pointer-events-none">{c.name}</Link>
+            <Link href={`/company/${c.company_id}`} className="text-ink no-underline hover:underline max-md:after:absolute max-md:after:inset-0">{c.name}</Link>
           </h2>
           <a href={c.website} target="_blank" rel="noopener noreferrer" className="text-[14px] max-md:text-ink-muted max-md:no-underline md:text-[15px]">
             {siteLabel(c.website)}

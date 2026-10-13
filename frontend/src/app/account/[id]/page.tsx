@@ -16,7 +16,6 @@ import { Tag } from "@/components/jq/status";
 import { Skeleton } from "@/components/jq/feedback";
 import { LostTicket } from "@/components/jq/illustrations";
 import { authHeaders } from "@/components/recruiter/shared";
-import { priorityUntil } from "@/components/marketing/pricing-ctas";
 
 type Status = "Submitted" | "Hired" | "Rejected";
 const LABEL: Record<Status, string> = { Submitted: "In the queue", Hired: "Hired", Rejected: "Rejected" };
@@ -172,7 +171,8 @@ function ApplicantProfile() {
   if (!person) return <ProfileSkeleton />;
 
   const first = person.name.split(" ")[0];
-  const priority = !!priorityUntil(person.subscription);
+  // Recruiters never get the subscription itself; the application says whether Priority is on now.
+  const priority = !!application?.subscribed;
   const status = (application?.status ?? "Submitted") as Status;
   const skills = person.skills?.filter(Boolean) ?? [];
 
